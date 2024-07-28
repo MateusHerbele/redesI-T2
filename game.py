@@ -18,8 +18,8 @@ class Game:
     
     # Inicilializa o baralho
     def initialize_deck(self):
-        suits = ['♦', '♤', '♥', '♧']
-        ranks = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '1', '2', '3']
+        suits = ['O', 'E', 'C', 'P']
+        ranks = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3']
         self.state['deck'] = [{'suit': suit, 'rank': rank} for suit in suits for rank in ranks]
 
     # Embaralha o baralho
@@ -28,7 +28,7 @@ class Game:
 
     # Força das cartas
     def card_strength(card, vira):
-        suit_order = ['♦', '♤', '♥', '♧']
+        suit_order = ['O', 'E', 'C', 'P']
         rank_order = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3']
         # manilhas
         manilha_index = 1 if vira['rank'] == '3' else rank_order.index(vira['rank']) + 1
