@@ -3,8 +3,7 @@
 # ALTERAR PARA Q A ORDEM DE ANÁLISE COMECE SEMPRE PELO CARTEADOR
 import random 
 class Game:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self):
         self.n_players = 4
         self.state = {
             'deck' : [],
