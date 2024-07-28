@@ -5,7 +5,7 @@ class Game:
         self.n_players = 4
         self.state = {
             'deck' : [],
-            'round' : 1,
+            'round' : 15,
             'current_dealer' : None,
             'player_lifes' : [7, 7, 7, 7],
             'players_alive': [True, True, True, True],
@@ -44,8 +44,8 @@ class Game:
     # Da as cartas e separa o vira, e retorna um vetor com as cartas
     def draw_cards(self):
         n_players_alive = self.state['players_alive'].count(True)
-        g_cards = [None] * self.n_players # Grupo de cartas 0 - n_players -> players / n_players + 1 -> vira
-        n_max_cards = int(52 / n_players_alive) - 1 # Número máximo de cards por player
+        g_cards = [[] for _ in range(self.n_players)]  # Inicializa g_cards como lista de listas
+        n_max_cards = int(40 / n_players_alive) - 1 # Número máximo de cards por player
         n_cards_to_give = 0 # Número de cartas a serem dadas
         if self.state['round'] > n_max_cards:
             n_cards_to_give = n_max_cards
@@ -53,7 +53,10 @@ class Game:
             n_cards_to_give = self.state['round'] 
         for i in range(self.n_players):
             if self.state['players_alive'][i]:
-                g_cards[i] = self.state['deck'].pop(n_cards_to_give)
+                for _ in range(n_cards_to_give):
+                    # print(f"[DEBUG] deck sendo dtr: {self.state['deck']}")
+                    # print(f"Para : {i}")
+                    g_cards[i].append(self.state['deck'].pop())
             else: # Se o jogador não estiver vivo, ele não recebe cartas
                 g_cards[i] = None
         return g_cards

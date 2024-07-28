@@ -5,4 +5,5 @@ game.initialize_deck()
 print(f"Printando deck: {game.state['deck']}")
 game.shuffle_deck()
 print(f"Printando deck: {game.state['deck']}")
-print(game.draw_cards())
+
+print(f"Printando cartas: {game.draw_cards()}")
