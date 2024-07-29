@@ -6,6 +6,7 @@ class Game:
         self.state = {
             'deck' : [],
             'round' : 1,
+            'n_sub_rounds' : 0,
             'current_dealer' : None,
             'player_lifes' : [7, 7, 7, 7],
             'players_alive': [True, True, True, True],
@@ -132,3 +133,11 @@ class Game:
             self.state['current_dealer'] = (self.state['current_dealer'] + 1) % self.n_players
         
         return possible_winner # Retorna o vencedor da rodada, ou -1 se não tiver vencedor, ou -2 se tiver empate
+
+    # Soma o n de subrodadas
+    def increment_sub_rounds(self):
+        self.state['n_sub_rounds'] += 1
+
+    # Reseta o número de subrodadas
+    def reset_sub_rounds(self):
+        self.state['n_sub_rounds'] = 0

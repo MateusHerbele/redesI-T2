@@ -10,3 +10,11 @@ NETWORK_ADDRESSES = [
 def get_addresses():
     identification = int(sys.argv[1])
     return NETWORK_ADDRESSES[identification], NETWORK_ADDRESSES[(identification + 1) % 4]
+
+def wait_for_user_input():
+    while True:
+        user_input = input("Digite 'sim' para iniciar a comunicação: ").strip().lower()
+        if user_input == "sim":
+            break
+        else:
+            print("Entrada inválida. Por favor, digite 'sim' para iniciar a comunicação.")
