@@ -2,6 +2,7 @@ import socket
 from game import Game
 from player import Player
 from network import send_broadcast, send_unicast, ring_messages
+from utils import *
 
 def wait_for_user_input():
     while True:
@@ -53,44 +54,11 @@ def dealer_routine(dealer_index, game, player, socket_sender, socket_receiver, N
         # Validação de quem torna:
         if subround_winner != dealer_index:
             validation, _ = send_unicast(socket_sender, 0, (subround_winner, game), NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
-            return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou                                                         
+            return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou                                                        
 
-
-# ----------------- Main -----------------
-# CURRENT_NODE_ADDRESS = (("127.0.0.1", 21254), 0)
-# NEXT_NODE_ADDRESS = (("127.0.0.1", 21255), 1)
-
-# socket_sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-# socket_receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# socket_receiver.bind(CURRENT_NODE_ADDRESS[0])
-
-# token_available = True if CURRENT_NODE_ADDRESS[1] == 0 else False
-# start_game = True if CURRENT_NODE_ADDRESS[1] == 0 else False
-# player = Player()
-# game = Game()
-
-# wait_for_user_input()
-# while True:
-#     # Inicializar o jogo
-#     if start_game:
-#         dealer_routine(CURRENT_NODE_ADDRESS[1], game, player, socket_sender, socket_receiver)
-#         start_game = False
-#     # Verificar se o token está disponível
-#     if token_available:
-#         dealer_routine(CURRENT_NODE_ADDRESS[1], game, player, socket_sender, socket_receiver)
-#     # Se não tiver, só espera as mensagens
-#     else:
-#         # Receber as mensagens
-#         # Essa função só para quando receber o token
-#         network_comunication = ring_messages(socket_sender, socket_receiver)
-#         if network_comunication == 1:
-#             token_available = True
-#         if network_comunication == 0:
-#             break # Acaba a execução do programa
+# --------main--------
 def main():
-    CURRENT_NODE_ADDRESS = (("127.0.0.1", 21254), 0)
-    NEXT_NODE_ADDRESS = (("127.0.0.1", 21255), 1)
+    CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS = get_addresses()
 
     socket_sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
