@@ -29,13 +29,13 @@ def verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS
     if type_message == 0: # TOKEN
         data, _ = socket_receiver.recvfrom(1024)
         packet = pickle.loads(data)
-        if packet.sender[0] ==  sender_index and packet.verifier == True:
+        if packet.sender ==  sender_index and packet.verifier == True:
             return True, packet.message
         return False, None
     # Se for um broadcast
     data, _ = socket_receiver.recvfrom(1024)
     packet = pickle.loads(data)
-    if packet.sender[0] == sender_index:
+    if packet.sender == sender_index:
         for i in range(3):
             if packet.verifier[i] == False:
                 return False, None 
@@ -63,11 +63,12 @@ def send_unicast(socket_sender, socket_receiver, type_message, message, sender_i
 def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, socket_sender, player):
     data, _ = socket_receiver.recvfrom(1024)
     packet = pickle.loads(data)
+    print(packet)
     # É preciso "corrigir" o index, para que faça sentido com o index do dealer atual
-    corrected_index = abs(CURRENT_NODE_ADDRESS[1] - packet.sender[1] - 1) % 4
+    corrected_index = abs(CURRENT_NODE_ADDRESS[1] - packet.sender - 1) % 4
     if packet.message_type == 0: # TOKEN
         if packet.dest == CURRENT_NODE_ADDRESS[1]:
-            packet.verifier = True
+            packet.verifier = True # não é um vetor pq é unicast
             socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
             time.sleep(1) # Garante que a mensagem de token recebido chegou no jogador que enviou
             return 1 # RETORNA QUE O TOKEN FOI RECEBIDO
@@ -78,33 +79,41 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, sock
             return 2 # RETORNA QUE A MENSAGEM JÁ FOI RECEBIDA
     elif packet.message_type == 1: # CARTAS
         player.receive_cards(packet.message[corrected_index])
-        packet.verifier.append(True) # Marca que a mensagem foi recebida
+        # packet.verifier.append(True) # Marca que a mensagem foi recebida
+        packet.verifier[corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 2: # VIRA
         player.receive_vira(packet.message)
-        packet.verifier.append(True)
+        # packet.verifier.append(True)
+        packet.verifier[corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 3: # PALPITE
-        player.make_a_guess()
-        packet.message.append(player.guess)
-        packet.verifier.append(True)
+        # Preciso trazer o jogo para cá, informação de round e n de players vivos
+        n_players_alive = len(packet.message) - 1 # Número de jogadores vivos
+        player.make_a_guess(packet.message, n_players_alive)
+        packet.message[corrected_index + 1] = player.guess
+        # packet.verifier.append(True)
+        packet.verifier[corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 4: # MOSTRA TODOS OS PALPITES
-        packet.verifier.append(True)
+        # packet.verifier.append(True)
+        packet.verifier[corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 5: # JOGAR A SUB RODADA
         player.play_a_card()
         packet.message.append(player.card_played)
-        packet.verifier.append(True)
+        # packet.verifier.append(True)
+        packet.verifier[corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 6: # FIM DA RODADA
         player.lose_lifes(packet.message[corrected_index])
-        packet.verifier.append(True)
+        # packet.verifier.append(True)
+        packet.verifier[corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 7: # EMPATE

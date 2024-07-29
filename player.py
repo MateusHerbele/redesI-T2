@@ -1,28 +1,31 @@
 from network import send_broadcast, send_unicast
 
 class Player:
-    def __init__(self):
+    def __init__(self, index):
         self.lifes = 7
         self.cards = []
         self.vira = None
         self.guess = None
-        self.index = None # Talvez remover, avaliar a necessidade
+        self.index = index # Talvez remover, avaliar a necessidade
         self.card_played = None
         
     # Faz um palpite e guarda no objeto 
     # DA PARA IMPLEMENTAR PARA LIMITAR O PALPITE AO NÚMERO DA RODADA
-    def make_a_guess(self, previous_guesses, g_round, n_playes_alive):
+    def make_a_guess(self, previous_guesses, n_playes_alive):
         sum_guesses = 0
-        if previous_guesses != []:
+
+        if previous_guesses[1] != None:
             print(f"Palpites anteriores: ")
-            for i in range(len(previous_guesses)):
-                corrected_index = (self.index + i + 1) % n_playes_alive
-                print(f"Jogador {corrected_index}: {previous_guesses[i]}")
-                sum_guesses += previous_guesses[i]
+            n_previous_guesses = len([guess for guess in previous_guesses if guess is not None]) - 1
+            print(f"[DEBUG] n_previous_guesses: {n_previous_guesses}")
+            for i in range(0, n_previous_guesses): # Palpites anteriores que não são none e não são o número da rodada
+                corrected_index = (self.index - i - 1) % n_playes_alive
+                print(f"Jogador {corrected_index}: {previous_guesses[i+1]}")
+                sum_guesses += previous_guesses[i+1]
             if len(previous_guesses) == n_playes_alive - 1:
                 self.guess = int(input("Digite seu palpite: "))
                 sum_guesses += self.guess
-                while g_round == sum_guesses:
+                while previous_guesses[0] == sum_guesses:
                     print(f"Seu palpite, em conjunto com os palpites anteriores, não pode ser igual ao número de cartas jogadas")
                     sum_guesses -= self.guess
                     self.guess = int(input("Digite seu palpite: "))
@@ -31,6 +34,9 @@ class Player:
             else:
                 self.guess = int(input("Digite seu palpite: "))
                 return self.guess
+        else: # Primeiro palpite da rodada
+            self.guess = int(input("Digite seu palpite: "))
+            return self.guess
 
     # Escolhe uma carta para jogar e guarda no objeto
     def play_a_card(self, previous_cards):
@@ -54,11 +60,14 @@ class Player:
 
     def lose_lifes(self, number_of_lost_lifes):
         self.lifes -= number_of_lost_lifes
+        print(f"Você perdeu {number_of_lost_lifes} vidas. Vidas restantes: {self.lifes}")
 
     def receive_cards(self, cards):
+        print(f"Cartas recebidas: {cards}")
         self.cards = cards
 
     def receive_vira(self, vira):
+        print(f"Vira recebida: {vira}")
         self.vira = vira
 
     def all_losers(self):
@@ -81,8 +90,14 @@ class Player:
                 n_players_alive = game.state['players_alive'].count(True)
                 self.receive_cards(cards[n_players_alive-1]) # Recebe as cartas do dealer
                 send_broadcast(socket_sender, socket_receiver, 2, game.state['vira'], dealer_index, NEXT_NODE_ADDRESS) # Envia o vira
-                _, guesses = send_broadcast(socket_sender, socket_receiver, 3, None, dealer_index, NEXT_NODE_ADDRESS) # Pede os palpites
-                self.make_a_guess(guesses, game.state['round'], n_players_alive) # Dealer faz o palpite
+                self.receive_vira(game.state['vira']) # Recebe o vira
+                # Fazer uma lista vazia com os palpites dos jogadores vivos
+                guesses = [game.state['round']] # Reserva a primeira posição para o número da rodada
+                for i in range(n_players_alive):
+                    guesses.append(None)
+                _, guesses = send_broadcast(socket_sender, socket_receiver, 3, guesses, dealer_index, NEXT_NODE_ADDRESS) # Pede os palpites
+                print(f"[DEBUG] guesses: {guesses}")
+                self.make_a_guess(guesses, n_players_alive) # Dealer faz o palpite
                 guesses.append(self.guess)
                 send_broadcast(socket_sender, socket_receiver, 4, guesses, dealer_index, NEXT_NODE_ADDRESS) # Envia os palpites
             # Manda a mensagem para coletar as cartas jogadas 

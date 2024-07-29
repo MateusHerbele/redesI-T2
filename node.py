@@ -15,7 +15,7 @@ def main():
 
     token_available = True if CURRENT_NODE_ADDRESS[1] == 0 else False
     start_game = True if CURRENT_NODE_ADDRESS[1] == 0 else False
-    player = Player()
+    player = Player(CURRENT_NODE_ADDRESS[1])
     game = Game()
     game_state = 0
     wait_for_user_input()
