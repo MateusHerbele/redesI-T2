@@ -50,7 +50,7 @@ def send_broadcast(socket_sender, socket_receiver, type_message, message, sender
     while validation == False:
         validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-    return message
+    return validation, message
 
 def send_unicast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS): # SÓ TEM UM TIPO DE UNICAST MAS NÃO SEI SE VALE DEIXAR SÓ AQUI MSM SEM TIPO DE MENSAGEM, ACHO Q FOGE DO PADRÃO
     packet = type_of_message(type_message, message, sender_index)
@@ -59,7 +59,7 @@ def send_unicast(socket_sender, socket_receiver, type_message, message, sender_i
     while validation == False:
         validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-    return message
+    return validation, message
 
 def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, socket_sender, player):
     data, _ = socket_receiver.recvfrom(1024)
