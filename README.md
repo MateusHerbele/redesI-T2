@@ -1,7 +1,7 @@
 # RedesI-T2
 Implementação de uma rede em anel que possibilite jogar F*da-se (o nome do jogo é esse mesmo)
 
-# O JOGO: # Regras do Jogo de Cartas
+# O JOGO: 
 
 ## Setup Inicial
 
