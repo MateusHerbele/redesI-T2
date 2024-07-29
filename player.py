@@ -77,18 +77,18 @@ class Player:
             game.shuffle_deck() # Embaralha o baralho
             cards_to_send = game.draw_cards() # Distribui as cartas 
             if game.state['n_sub_rounds'] == 0:
-                _, cards = send_broadcast(socket_sender, socket_receiver, 1, cards_to_send, NEXT_NODE_ADDRESS) # Envia as cartas para os jogadores
+                _, cards = send_broadcast(socket_sender, socket_receiver, 1, cards_to_send, dealer_index, NEXT_NODE_ADDRESS) # Envia as cartas para os jogadores
                 n_players_alive = game.state['players_alive'].count(True)
                 self.receive_cards(cards[n_players_alive-1]) # Recebe as cartas do dealer
-                send_broadcast(socket_sender, socket_receiver, 2, game.state['vira'], NEXT_NODE_ADDRESS) # Envia o vira
-                _, guesses = send_broadcast(socket_sender, socket_receiver, 3, None, NEXT_NODE_ADDRESS) # Pede os palpites
+                send_broadcast(socket_sender, socket_receiver, 2, game.state['vira'], dealer_index, NEXT_NODE_ADDRESS) # Envia o vira
+                _, guesses = send_broadcast(socket_sender, socket_receiver, 3, None, dealer_index, NEXT_NODE_ADDRESS) # Pede os palpites
                 self.make_a_guess(guesses, game.state['round'], n_players_alive) # Dealer faz o palpite
                 guesses.append(self.guess)
-                send_broadcast(socket_sender, socket_receiver, 4, guesses, NEXT_NODE_ADDRESS) # Envia os palpites
+                send_broadcast(socket_sender, socket_receiver, 4, guesses, dealer_index, NEXT_NODE_ADDRESS) # Envia os palpites
             # Manda a mensagem para coletar as cartas jogadas 
             # e recebe as cartas jogadas
             self.play_a_card([]) # Dealer joga uma carta
-            cards_played = send_broadcast(socket_sender, socket_receiver, 5, self.card_played, NEXT_NODE_ADDRESS) 
+            cards_played = send_broadcast(socket_sender, socket_receiver, 5, self.card_played, dealer_index, NEXT_NODE_ADDRESS) 
             subround_winner = game.end_of_sub_round(cards_played) # Contabiliza quem fez a rodada
                                     
             game.increment_sub_round() # Incrementa a rodada
@@ -99,17 +99,17 @@ class Player:
                 if round_evaluation == -1: # Ninguém ganhou
                     next_dealer = game.next_dealer() # Pega o próximo dealer
                     game.reset_sub_rounds() # Reseta o número de sub-rodadas
-                    send_broadcast(socket_sender, socket_receiver, 0, (next_dealer, game), NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
+                    send_broadcast(socket_sender, socket_receiver, 0, (next_dealer, game), dealer_index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
                     # continue
                 elif round_evaluation == -2: # Empate
-                    send_broadcast(socket_sender, socket_receiver, 7, round_evaluation, NEXT_NODE_ADDRESS)
+                    send_broadcast(socket_sender, socket_receiver, 7, round_evaluation, dealer_index, NEXT_NODE_ADDRESS)
                     return 1
                 else: # Tem um vencedor
-                    send_broadcast(socket_sender, socket_receiver, 8, round_evaluation, NEXT_NODE_ADDRESS)
+                    send_broadcast(socket_sender, socket_receiver, 8, round_evaluation, dealer_index, NEXT_NODE_ADDRESS)
                     return 1
                 return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
             
             # Validação de quem torna:
             if subround_winner != dealer_index:
-                validation, _ = send_unicast(socket_sender, 0, (subround_winner, game), NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
+                validation, _ = send_unicast(socket_sender, 0, (subround_winner, game), dealer_index, NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
                 return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou        

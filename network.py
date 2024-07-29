@@ -1,8 +1,7 @@
 import socket
 import time
-from packet import Package
 import pickle # Biblioteca para serialização de objetos
-from packet import Packet, BroadcastPacket, UnicastPacket
+from packet import BroadcastPacket, UnicastPacket
 
 # Define o tipo da mensagem
 def type_of_message(type_message, message, sender_index):
