@@ -1,6 +1,5 @@
 import socket
 import time
-from queue import Queue
 from packet import Package
 import pickle # Biblioteca para serialização de objetos
 from packet import Packet, BroadcastPacket, UnicastPacket
@@ -15,14 +14,16 @@ def type_of_message(type_message, message, sender_index):
         return BroadcastPacket(sender_index, 2, message) # Envia o vira
     elif type_message == 3:  # PALPITES
         return BroadcastPacket(sender_index, 3, message) # Pede os palpites
-    elif type_message == 4:  # JOGAR A SUB RODADA
-        return BroadcastPacket(sender_index, 4, message) # Pede as cartas jogadas
-    elif type_message == 5:  # FIM DA RODADA
-        return BroadcastPacket(sender_index, 5, message) # Passa os resultados da rodada
-    elif type_message == 6:  # EMPATE
-        return BroadcastPacket(sender_index, 6, message) # Passa o empate
-    elif type_message == 7:  # VENCEDOR
-        return BroadcastPacket(sender_index, 7, message) # Passa o vencedor 
+    elif type_message == 4:  # MOSTRA TODOS OS PALPITES
+        return BroadcastPacket(sender_index, 4, message)
+    elif type_message == 5:  # JOGAR A SUB RODADA
+        return BroadcastPacket(sender_index, 5, message) # Pede as cartas jogadas
+    elif type_message == 6:  # FIM DA RODADA
+        return BroadcastPacket(sender_index, 6, message) # Passa os resultados da rodada
+    elif type_message == 7:  # EMPATE
+        return BroadcastPacket(sender_index, 7, message) # Passa o empate
+    elif type_message == 8:  # VENCEDOR
+        return BroadcastPacket(sender_index, 8, message) # Passa o vencedor 
 
 # Verifica se a mensagem foi recebida corretamente 
 def verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS):
@@ -30,29 +31,35 @@ def verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS
         data, _ = socket_receiver.recvfrom(1024)
         packet = pickle.loads(data)
         if packet.sender[0] ==  sender_index and packet.verifier == True:
-            return True
-        return False
+            return True, packet.message
+        return False, None
     # Se for um broadcast
     data, _ = socket_receiver.recvfrom(1024)
     packet = pickle.loads(data)
     if packet.sender[0] == sender_index:
         for i in range(3):
             if packet.verifier[i] == False:
-                return False
-        return True
+                return False, None 
+        return True, packet.message
 
 def send_broadcast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS):
+    validation = False
     packet = type_of_message(type_message, message, sender_index)
     socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     # Verifica se a mensagem foi recebida corretamente e reenvia caso não tenha sido
-    while verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS) == False:
+    while validation == False:
+        validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
+    return message
 
 def send_unicast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS): # SÓ TEM UM TIPO DE UNICAST MAS NÃO SEI SE VALE DEIXAR SÓ AQUI MSM SEM TIPO DE MENSAGEM, ACHO Q FOGE DO PADRÃO
     packet = type_of_message(type_message, message, sender_index)
     socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-    while verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS) == False:
+    # Verifica se a mensagem foi recebida corretamente e reenvia caso não tenha sido
+    while validation == False:
+        validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
+    return message
 
 def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, socket_sender, player):
     data, _ = socket_receiver.recvfrom(1024)
@@ -71,12 +78,12 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, sock
     elif packet.verifier[corrected_index] == True:
             return 2 # RETORNA QUE A MENSAGEM JÁ FOI RECEBIDA
     elif packet.message_type == 1: # CARTAS
-        player.cards = packet.message[corrected_index]
+        player.receive_cards(packet.message[corrected_index])
         packet.verifier.append(True) # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 2: # VIRA
-        player.vira = packet.message
+        player.receive_vira(packet.message)
         packet.verifier.append(True)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
@@ -86,22 +93,30 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, sock
         packet.verifier.append(True)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
-    elif packet.message_type == 4: # JOGAR A SUB RODADA
+    elif packet.message_type == 4: # MOSTRA TODOS OS PALPITES
+        packet.verifier.append(True)
+        socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
+        return 2
+    elif packet.message_type == 5: # JOGAR A SUB RODADA
         player.play_a_card()
         packet.message.append(player.card_played)
         packet.verifier.append(True)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
-    elif packet.message_type == 5: # FIM DA RODADA
-        player.lifes = packet.message[corrected_index]
+    elif packet.message_type == 6: # FIM DA RODADA
+        player.lose_lifes(packet.message[corrected_index])
         packet.verifier.append(True)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
-    elif packet.message_type == 6: # EMPATE
+    elif packet.message_type == 7: # EMPATE
+        player.all_losers()
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         #termina o jogo
         return 0
-    elif packet.message_type == 7: # VENCEDOR
+    elif packet.message_type == 8: # VENCEDOR
+        if(packet.message == corrected_index):
+            player.winner() # Você ganhou
+        player.loser(packet.message) # Outro player ganhou
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         #termina o jogo
         return 0
