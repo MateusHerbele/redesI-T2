@@ -1,65 +1,6 @@
 import socket
-import time
-from queue import Queue
-from package import Package
-import pickle # Biblioteca para serialização de objetos
-
-def token_passage(socket_receiver, socket_sender, current_node, next_node):
-    message_to_send = Package(next_node[1], current_node[1], "token")
-    data = pickle.dumps(message_to_send)
-    n_tries = 0
-    while True:
-        socket_sender.sendto(data, next_node[0])
-        print(f"Token enviado para {next_node[1]}")
-
-        try:
-            print("Esperando resposta do token")
-            data_recv, addr = socket_receiver.recvfrom(1024)
-            data_recv = pickle.loads(data_recv)
-
-            print(f"Mensagem recebida de {addr}: {data_recv.message}")
-            
-            # transformar isso em um método ou função
-            if (data_recv.dest == message_to_send.dest and
-                data_recv.sender == message_to_send.sender and
-                data_recv.message == message_to_send.message and
-                data_recv.received == True):    
-                return False
-            
-        except socket.timeout:
-            print("Tempo limite atingido, tentando novamente enviar o token.")
-            n_tries += 1
-            if n_tries > 3:
-                print("O nodo seguinte está fora da rede.")
-                return True
-            continue
-
-
-def token_received(socket_receiver, socket_sender, current_node, next_node):
-    try:
-        data_recv, addr = socket_receiver.recvfrom(1024)
-        data_recv = pickle.loads(data_recv)
-        print(f"Dados recebidos (token esperado): {data_recv.message}")
-        if data_recv.message == "token":
-            print(f"Token recebido de {addr}")
-            data_recv.received_message() 
-            data_recv = pickle.dumps(data_recv)
-            socket_sender.sendto(data_recv, next_node[0])
-            return True
-    except socket.timeout:
-        print("Tempo limite atingido ao esperar pelo token.")
-    return False
-
-def send_messages(messages_queue, socket_sender, token_hold_time, current_node, next_node):
-    start_time = time.time()
-    while time.time() - start_time < token_hold_time:
-        if not messages_queue.empty():
-            current_message = messages_queue.get()
-            message = Package(next_node[1], current_node[1], current_message)
-            data = pickle.dumps(message)
-            socket_sender.sendto(data, next_node[0])
-            print(f"Mensagem enviada para {next_node[1]}: {current_message}")
-    return
+from game import Game
+from network import send_broadcast, send_unicast, ring_messages
 
 def wait_for_user_input():
     while True:
@@ -69,32 +10,64 @@ def wait_for_user_input():
         else:
             print("Entrada inválida. Por favor, digite 'sim' para iniciar a comunicação.")
 
+def dealer_routine(dealer_index, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS):
+    # Inicializar o jogo
+    while True:
+        n_sub_rounds = 0
+        game.initialize_deck() # Inicializa o baralho
+        game.shuffle_deck() # Embaralha o baralho
+        cards_to_send = game.draw_cards() # Distribui as cartas 
+        if n_sub_rounds == 0:
+            send_broadcast(socket_sender, socket_receiver, 1, cards_to_send, NEXT_NODE_ADDRESS) # Envia as cartas para os jogadores
+            send_broadcast(socket_sender, socket_receiver, 2, game.state['vira'], NEXT_NODE_ADDRESS) # Envia o vira
+            send_broadcast(socket_sender, socket_receiver, 3, None, NEXT_NODE_ADDRESS) # Pede os palpites
+            dealer_guess(player_index) # Dealer faz o palpite
+        # Manda a mensagem para coletar as cartas jogadas 
+        # e recebe as cartas jogadas
+        cards_played = send_broadcast(socket_sender, socket_receiver, 4, dealer_card, NEXT_NODE_ADDRESS) 
+        subround_winner = game.end_of_sub_round(cards_played) # Contabiliza quem fez a rodada
+        if subround_winner != dealer_index:
+            send_unicast(socket_sender, 0, (subround_winner, game), NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar"
+                                                                           # E se tornar o "dealer" da próxima rodada
+        n_sub_rounds += 1
+        if n_sub_rounds == game.state['round']:
+            round_evaluation = game.end_of_round() # Avalia a situação pós-rodada
+            send_broadcast(socket_sender, 5, None, NEXT_NODE_ADDRESS) # Passa os resultados da rodada
+            if round_evaluation == -1: # Ninguém ganhou
+                next_dealer = game.next_dealer() # Pega o próximo dealer
+                send_broadcast(socket_sender, socket_receiver, 0, (next_dealer, game), NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
+                continue
+            elif round_evaluation == -2: # Empate
+                send_broadcast(socket_sender, socket_receiver, 6, round_evaluation, NEXT_NODE_ADDRESS)
+            else: # Tem um vencedor
+                send_broadcast(socket_sender, socket_receiver, 7, round_evaluation, NEXT_NODE_ADDRESS)
+                break
+
+
 # ----------------- Main -----------------
-CURRENT_NODE_ADDRESS = (("127.0.0.1", 21254), 'A')
-NEXT_NODE_ADDRESS = (("127.0.0.1", 21255), 'B')
-
-token_hold_time = 5 
-node_messages_queue = Queue()
-
-# Adicionar mensagens à fila para testes
-node_messages_queue.put("Hello, Node B!")
-node_messages_queue.put("How are you?")
+CURRENT_NODE_ADDRESS = (("127.0.0.1", 21254), 0)
+NEXT_NODE_ADDRESS = (("127.0.0.1", 21255), 1)
 
 socket_sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 socket_receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 socket_receiver.bind(CURRENT_NODE_ADDRESS[0])
-socket_receiver.settimeout(5.0)  # Configurando o timeout do socket
 
-token_available = True if CURRENT_NODE_ADDRESS[1] == 'A' else False
+token_available = True if CURRENT_NODE_ADDRESS[1] == 0 else False
+start_game = True if CURRENT_NODE_ADDRESS[1] == 0 else False
+game = Game()
 
 wait_for_user_input()
 while True:
+    # Inicializar o jogo
+    if start_game:
+        dealer_routine(CURRENT_NODE_ADDRESS[1], game, socket_sender, socket_receiver)
+        start_game = False
+    # Verificar se o token está disponível
     if token_available:
-        # Enviar mensagens da fila
-        send_messages(node_messages_queue, socket_sender, token_hold_time, CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS)
-        # Passar o token para o próximo nó
-        if token_passage(socket_receiver, socket_sender, CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS):
-            break
-    # Verificar se o token foi recebido
-    token_available = token_received(socket_receiver, socket_sender, CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS)
+        dealer_routine(CURRENT_NODE_ADDRESS[1], game, socket_sender, socket_receiver)
+    # Se não tiver, só espera as mensagens
+    else:
+        # Receber as mensagens
+        # Essa função só para quando receber o token
+        ring_messages(socket_sender, socket_receiver)

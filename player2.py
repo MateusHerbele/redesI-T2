@@ -1,7 +1,7 @@
 import socket
 import time
 from queue import Queue
-from package import Package
+from packet import Package
 import pickle # Biblioteca para serialização de objetos
 
 def token_passage(socket_receiver, socket_sender, current_node, next_node):

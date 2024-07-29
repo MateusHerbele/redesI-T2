@@ -5,7 +5,7 @@ class Game:
         self.n_players = 4
         self.state = {
             'deck' : [],
-            'round' : 15,
+            'round' : 1,
             'current_dealer' : None,
             'player_lifes' : [7, 7, 7, 7],
             'players_alive': [True, True, True, True],
@@ -14,6 +14,9 @@ class Game:
             'vira' : None
         }
     
+    def __str__(self):
+        return f"Deck: {self.state['deck']}, Round: {self.state['round']}, Current Dealer: {self.state['current_dealer']}, Player Lifes: {self.state['player_lifes']}, Players Alive: {self.state['players_alive']}, Guesses: {self.state['guesses']}, Points: {self.state['points']}, Vira: {self.state['vira']}"
+
     # Inicilializa o baralho
     def initialize_deck(self):
         suits = ['O', 'E', 'C', 'P']
@@ -59,6 +62,7 @@ class Game:
                     g_cards[i].append(self.state['deck'].pop())
             else: # Se o jogador não estiver vivo, ele não recebe cartas
                 g_cards[i] = None
+        self.state['vira'] = self.state['deck'].pop() # Vira é a última carta removida do baralho
         return g_cards
     
     # Contabiliza as cartas jogadas
@@ -83,7 +87,14 @@ class Game:
                     break # Caso já tenha sido embuchada não precisa continuar a verificação
         
         self.points[cards_strength.index(max(cards_strength))] += 1
+        return cards_strength.index(max(cards_strength))
     
+    # Pega o próximo jogador VIVO para ser o dealer
+    def next_dealer(self):
+        n_dealer = (self.state['round'] - 1) % self.n_players 
+        while not self.state['players_alive'][n_dealer]:
+            n_dealer = (n_dealer + 1) % self.n_players
+
     def kill_player(self, index):
         self.state['players_alive'][index] = False
     # Determina o vencedor da rodada
@@ -119,11 +130,5 @@ class Game:
         if possible_winner == -1:
             self.state['round'] += 1
             self.state['current_dealer'] = (self.state['current_dealer'] + 1) % self.n_players
-        elif possible_winner == -2:
-            return -1
-        else:
-            return possible_winner
         
-  
-                    
-
+        return possible_winner # Retorna o vencedor da rodada, ou -1 se não tiver vencedor, ou -2 se tiver empate
