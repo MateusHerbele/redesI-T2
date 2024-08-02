@@ -144,7 +144,6 @@ class Player:
             _, cards_played = send_broadcast(socket_sender, socket_receiver, 5, card_message, dealer_index, NEXT_NODE_ADDRESS) 
             subround_winner = game.end_of_sub_round(cards_played) # Contabiliza quem fez a rodada
             print(f"[DEBUG] subround_winner: {subround_winner}")
-                     
             game.increment_sub_rounds() # Incrementa a rodada
             # Validação de fim de rodada
             if game.state['n_sub_rounds'] == game.state['round']:

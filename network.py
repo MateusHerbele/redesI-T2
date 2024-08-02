@@ -27,7 +27,7 @@ def verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS
     data, _ = socket_receiver.recvfrom(1024)
     packet = pickle.loads(data)
     if packet.sender == sender_index:
-        for i in range(3):
+        for i in range(3): # Era 3
             if packet.verifier[i] == False:
                 return False, None 
         return True, packet.message
@@ -51,6 +51,37 @@ def send_unicast(socket_sender, socket_receiver, type_message, message, sender_i
         validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     return validation, message # esse retorno do validation é inútil, mudar isso
+
+# SE CONSEGUIR CONCERTAR ESSA **** OBG GUILHERME/MILENA:
+def corrected_index_func(node, game):
+    if node == 0: # Manter a circularidade
+        if game.state['current_dealer'] == 1:
+            return 2
+        elif game.state['current_dealer'] == 2:
+            return 1
+        elif game.state['current_dealer'] == 3:
+            return 0
+    elif node == 1:
+        if game.state['current_dealer'] == 0:
+            return 0
+        elif game.state['current_dealer'] == 2:
+            return 2
+        elif game.state['current_dealer'] == 3:
+            return 1
+    elif node == 2:
+        if game.state['current_dealer'] == 0:
+            return 1
+        elif game.state['current_dealer'] == 1:
+            return 0
+        elif game.state['current_dealer'] == 3:
+            return 2
+    elif node == 3:
+        if game.state['current_dealer'] == 0:
+            return 2
+        elif game.state['current_dealer'] == 1:
+            return 1
+        elif game.state['current_dealer'] == 2:
+            return 0    
 
 def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver, socket_sender, player):
     data, _ = socket_receiver.recvfrom(1024)
@@ -79,21 +110,15 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
         game.set_current_dealer(packet.sender) # Define o dealer -> gambiarra 
         # isso vai dar problema quando morrer um player:
         # mudar para que o dealer 2 e o index do 0 fique certo (1) 
-        if CURRENT_NODE_ADDRESS[1] == 0: # Manter a circularidade
-            if game.state['current_dealer'] == 1:
-                corrected_index = 2
-            elif game.state['current_dealer'] == 2:
-                corrected_index = 1
-            elif game.state['current_dealer'] == 3:
-                corrected_index = 0
-        else:
-            corrected_index = abs(CURRENT_NODE_ADDRESS[1] - game.state['current_dealer'] - 1) % 4
+        corrected_index = corrected_index_func(CURRENT_NODE_ADDRESS[1], game)
         player.load_corrected_index(corrected_index)
         player.receive_cards(packet.message[player.corrected_index])
         packet.verifier[player.corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.verifier[player.corrected_index] == True:
+        print("[DEBUG] Mensagem já recebida")
+        print(f"[DEBUG] corrected_index: {player.corrected_index}")
         return 2 # RETORNA QUE A MENSAGEM JÁ FOI RECEBIDA
     elif packet.message_type == 2: # VIRA
         player.receive_vira(packet.message)
@@ -112,9 +137,13 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 5: # JOGAR A SUB RODADA
+        print(f"[DEBUG] tr t5")
         player.play_a_card(packet.message)
         packet.message.append(player.card_played)
-        packet.verifier[player.corrected_index] = True # Marca que a mensagem foi recebida
+        if game.state['current_dealer'] == player.index: # Se for o dealer
+            packet.verifier[game.state['current_dealer']] = True
+        else:
+            packet.verifier[player.corrected_index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 6: # FIM DA RODADA
