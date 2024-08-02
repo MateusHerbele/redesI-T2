@@ -35,7 +35,7 @@ def main():
         elif game_state == 0: # Continua o jogo
             # Receber as mensagens
             # Essa função só para quando receber o token
-            network_comunication = ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, socket_sender, player)
+            network_comunication = ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver, socket_sender, player)
             if network_comunication == 1:
                 token_available = True
             if network_comunication == 0:

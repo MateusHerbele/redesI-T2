@@ -7,6 +7,7 @@ class Player:
         self.vira = None
         self.guess = None
         self.index = index # Talvez remover, avaliar a necessidade
+        self.corrected_index = None
         self.card_played = None
         
     # Faz um palpite e guarda no objeto 
@@ -20,7 +21,7 @@ class Player:
             print(f"[DEBUG] n_previous_guesses: {n_previous_guesses}")
             for i in range(0, n_previous_guesses): # Palpites anteriores que não são none e não são o número da rodada
                 corrected_index = (self.index - i - 1) % n_playes_alive
-                # Tem que ser  + 1 por conta do roung
+                # Tem que ser  + 1 por conta do round
                 print(f"Jogador {corrected_index}: {previous_guesses[i+1]}")
                 sum_guesses += previous_guesses[i+1]
             print(f"[DEBUG] sum_guesses: {sum_guesses}, n_playes_alive: {n_playes_alive}")
@@ -84,7 +85,7 @@ class Player:
 
     def lose_lifes(self, number_of_lost_lifes):
         self.lifes -= number_of_lost_lifes
-        print(f"Você perdeu {number_of_lost_lifes} vidas. Vidas restantes: {self.lifes}")
+        print(f"Número de vidas perdidas: {number_of_lost_lifes}. Vidas restantes: {self.lifes}")
 
     def receive_cards(self, cards):
         print(f"Cartas recebidas: {cards}")
@@ -106,8 +107,10 @@ class Player:
     def dealer_routine(self, dealer_index, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS):
         # Inicializar o jogo
         while True:
+            corrected_index = (self.index - 1) % game.n_players
             if game.state['n_sub_rounds'] == 0:
-                corrected_index = (self.index - 1) % game.n_players
+                print(f"[DEBUG] Começando a rodada {game.state['round']}")
+                game.set_current_dealer(dealer_index) # Define o dealer
                 game.initialize_deck() # Inicializa o baralho
                 game.shuffle_deck() # Embaralha o baralho
                 cards_to_send = game.draw_cards() # Distribui as cartas 
@@ -126,7 +129,11 @@ class Player:
                 print(f"[DEBUG] guesses: {guesses}")
                 self.make_a_guess(guesses, n_players_alive) # Dealer faz o palpite
                 guesses = guesses[1:] # Remove o número da rodada
-                guesses[corrected_index] = self.guess
+                print(f"[DEBUG] guesses a serem acoplados: {guesses}")
+                print(f"[DEBUG] corrected index: {corrected_index}")
+                guesses[n_players_alive -1] = self.guess # Acopla o palpite do dealer
+                game.load_guesses(guesses) # Carrega os palpites no jogo
+                print(f"[DEBUG] guesses acoplados: {guesses}")
 
                 send_broadcast(socket_sender, socket_receiver, 4, guesses, dealer_index, NEXT_NODE_ADDRESS) # Envia os palpites
             # Manda a mensagem para coletar as cartas jogadas 
@@ -136,26 +143,37 @@ class Player:
             card_message = [self.card_played]
             _, cards_played = send_broadcast(socket_sender, socket_receiver, 5, card_message, dealer_index, NEXT_NODE_ADDRESS) 
             subround_winner = game.end_of_sub_round(cards_played) # Contabiliza quem fez a rodada
-                                    
-            game.increment_sub_round() # Incrementa a rodada
+            print(f"[DEBUG] subround_winner: {subround_winner}")
+                     
+            game.increment_sub_rounds() # Incrementa a rodada
             # Validação de fim de rodada
-            if game.state['n_sub_round'] == game.state['round']:
+            if game.state['n_sub_rounds'] == game.state['round']:
                 round_evaluation = game.end_of_round() # Avalia a situação pós-rodada
-                send_broadcast(socket_sender, 6, None, NEXT_NODE_ADDRESS) # Passa os resultados da rodada
+                _, dealer_points = send_broadcast(socket_sender, socket_receiver, 6, game.state['points'], dealer_index, NEXT_NODE_ADDRESS) # Passa os resultados da rodada
+                self.lose_lifes(dealer_points[corrected_index]) # Perde vidas
                 if round_evaluation == -1: # Ninguém ganhou
+                    game.increment_round() # Incrementa a rodada
                     next_dealer = game.next_dealer() # Pega o próximo dealer
                     game.reset_sub_rounds() # Reseta o número de sub-rodadas
-                    send_broadcast(socket_sender, socket_receiver, 0, (next_dealer, game), dealer_index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
-                    # continue
+                    print(f"[DEBUG] next_dealer: {next_dealer}")
+                    if next_dealer != dealer_index:
+                        send_unicast(socket_sender, socket_receiver, 0, (next_dealer, game.state), dealer_index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
+                        return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
+                    continue # Continua o loop
                 elif round_evaluation == -2: # Empate
                     send_broadcast(socket_sender, socket_receiver, 7, round_evaluation, dealer_index, NEXT_NODE_ADDRESS)
                     return 1
                 else: # Tem um vencedor
                     send_broadcast(socket_sender, socket_receiver, 8, round_evaluation, dealer_index, NEXT_NODE_ADDRESS)
                     return 1
-                return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
+                # return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
             
             # Validação de quem torna:
             if subround_winner != dealer_index:
-                validation, _ = send_unicast(socket_sender, 0, (subround_winner, game), dealer_index, NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
-                return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou        
+                print(f"[DEBUG] subround_winner (torna): {subround_winner}")
+                send_unicast(socket_sender, socket_receiver, 0, (subround_winner, game.state), dealer_index, NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
+                return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou      
+
+    def load_corrected_index(self, corrected_index):
+        self.corrected_index = corrected_index
+        return self.corrected_index  

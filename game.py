@@ -7,16 +7,17 @@ class Game:
             'deck' : [],
             'round' : 1,
             'n_sub_rounds' : 0,
+            'n_sub_rounds' : 0,
             'current_dealer' : None,
-            'player_lifes' : [7, 7, 7, 7],
+            'players_lifes' : [7, 7, 7, 7],
             'players_alive': [True, True, True, True],
             'guesses' : [],
-            'points' : [],
-            'vira' : None
+            'points' : [0, 0, 0, 0],
+            'vira' : None,
         }
     
     def __str__(self):
-        return f"Deck: {self.state['deck']}, Round: {self.state['round']}, Current Dealer: {self.state['current_dealer']}, Player Lifes: {self.state['player_lifes']}, Players Alive: {self.state['players_alive']}, Guesses: {self.state['guesses']}, Points: {self.state['points']}, Vira: {self.state['vira']}"
+        return f"Deck: {self.state['deck']}, Round: {self.state['round']}, Current Dealer: {self.state['current_dealer']}, Player Lifes: {self.state['players_lifes']}, Players Alive: {self.state['players_alive']}, Guesses: {self.state['guesses']}, Points: {self.state['points']}, Vira: {self.state['vira']}"
 
     # Inicilializa o baralho
     def initialize_deck(self):
@@ -37,7 +38,7 @@ class Game:
         print(f"[DEBUG] manilha_index: {manilha_index}")
         print(f"[DEBUG] card rank: {card[0]}")
         if rank_order.index(card[0]) == manilha_index:
-            return 10 + suit_order.index(card['suit']) 
+            return 10 + suit_order.index(card[1]) 
         return rank_order.index(card[0])
 
     # Embuchadas:
@@ -56,6 +57,7 @@ class Game:
         if self.state['round'] > n_max_cards:
             n_cards_to_give = n_max_cards
         else:
+            print(f"[DEBUG] round: {self.state['round']}")
             n_cards_to_give = self.state['round'] 
         for i in range(self.n_players):
             if self.state['players_alive'][i]:
@@ -89,7 +91,7 @@ class Game:
                     cards_strength[i] = -1
                     cards_strength[j] = -1
                     break # Caso já tenha sido embuchada não precisa continuar a verificação
-        
+        print(f"[DEBUG] cards_strength: {cards_strength}")
         self.state['points'][cards_strength.index(max(cards_strength))] += 1
         return cards_strength.index(max(cards_strength))
     
@@ -98,6 +100,7 @@ class Game:
         n_dealer = (self.state['round'] - 1) % self.n_players 
         while not self.state['players_alive'][n_dealer]:
             n_dealer = (n_dealer + 1) % self.n_players
+        return n_dealer
 
     def kill_player(self, index):
         self.state['players_alive'][index] = False
@@ -106,16 +109,16 @@ class Game:
         players_alive = 0 # Contador de jogadores vivos
 
         for i in range(self.n_players):
-            if self.players_lifes[i] > 0:
+            if self.state['players_lifes'][i] > 0:
                 players_alive += 1
             else:
                 self.kill_player(i) # Se o jogador não tiver mais vidas, ele é eliminado
         if players_alive == 1: # Se tem só um jogador vivo ele é o vencedor, só retorna o índice dele
-            return self.players_lifes.index(max(self.players_lifes))
+            return self.state['players_lifes'].index(max(self.state['players_lifes']))
         elif players_alive == 0: # Se não tem ninguém vivo
             # E não tiver empates, o jogador com mais pontos é o vencedor
-            if self.points.count(max(self.points)) == 1:
-                return self.points.index(max(self.points))
+            if self.state['points'].count(max(self.state['points'])) == 1:
+                return self.state['points'].index(max(self.state['points']))
             else:
                 return -2 # Se tiver empate, não tem vencedor
         else:
@@ -125,22 +128,35 @@ class Game:
     # Elimina um jogador que fique sem vidas    
     def end_of_round(self):
         for i in range(self.n_players):
-            if self.points[i] == self.guesses[i]:
+            if self.state['points'][i] == self.state['guesses'][i]:
                 continue
             else:
-                self.players_lifes[i] -= abs(self.points[i] - self.guesses[i])
-        
-        possible_winner = self.determine_winner() # Verifica se tem um vencedor
-        if possible_winner == -1:
-            self.state['round'] += 1
-            self.state['current_dealer'] = (self.state['current_dealer'] + 1) % self.n_players
-        
-        return possible_winner # Retorna o vencedor da rodada, ou -1 se não tiver vencedor, ou -2 se tiver empate
+                print(f"[DEBUG] EOR players_lifes: {self.state['players_lifes']}")
+                print(f"[DEBUG] EOR points: {self.state['points']}")
+                print(f"[DEBUG] EOR guesses: {self.state['guesses']}")
+                self.state['players_lifes'][i] -= abs(self.state['points'][i] - self.state['guesses'][i])
+        return self.determine_winner() # Retorna o vencedor da rodada, ou -1 se não tiver vencedor, ou -2 se tiver empate
+
+    # Carrega os guesses
+    def load_guesses(self, guesses):
+        self.state['guesses'] = guesses 
 
     # Soma o n de subrodadas
     def increment_sub_rounds(self):
         self.state['n_sub_rounds'] += 1
 
+    # Soma o n de rounds
+    def increment_round(self):
+        self.state['round'] += 1
+        print(f"[DEBUG] incrementando round: {self.state['round']}")
+
     # Reseta o número de subrodadas
     def reset_sub_rounds(self):
         self.state['n_sub_rounds'] = 0
+
+    # Atribui o dealer atual
+    def set_current_dealer(self, dealer):
+        self.state['current_dealer'] = dealer
+
+    def load_state(self, state):
+        self.state = state
