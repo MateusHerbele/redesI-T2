@@ -20,9 +20,13 @@ class Player:
             print(f"[DEBUG] n_previous_guesses: {n_previous_guesses}")
             for i in range(0, n_previous_guesses): # Palpites anteriores que não são none e não são o número da rodada
                 corrected_index = (self.index - i - 1) % n_playes_alive
+                # Tem que ser  + 1 por conta do roung
                 print(f"Jogador {corrected_index}: {previous_guesses[i+1]}")
                 sum_guesses += previous_guesses[i+1]
-            if len(previous_guesses) == n_playes_alive - 1:
+            print(f"[DEBUG] sum_guesses: {sum_guesses}, n_playes_alive: {n_playes_alive}")
+
+            if n_previous_guesses == n_playes_alive - 1:
+                print("[DEBUG] Último palpite")
                 self.guess = int(input("Digite seu palpite: "))
                 sum_guesses += self.guess
                 while previous_guesses[0] == sum_guesses:
@@ -40,23 +44,43 @@ class Player:
 
     # Escolhe uma carta para jogar e guarda no objeto
     def play_a_card(self, previous_cards):
+        print(f"[DEBUG] previous_cards: {previous_cards}")
         if previous_cards == []:
             print("Você é o primeiro a jogar, escolha uma carta: ")
             for i in range(len(self.cards)):
-                print(f" {i+1}: {self.cards[i]}")
-            card = int(input()) # adicionar verificação pra se o player não ta fazendo bosta e mandando coisa q não tem
+                print(f" {i+1}: {self.cards[i][0]} de {self.cards[i][1]}")
+            while True:
+                try:
+                    card = int(input())
+                    if 1 <= card <= len(self.cards):
+                        break
+                    else:
+                        print("Número inválido. Por favor, escolha um número entre 1 e", len(self.cards))
+                except ValueError:
+                    print("Entrada inválida. Por favor, digite um número.")
+            print(f"[DEBUG] cards: {self.cards}")
             self.card_played = self.cards[card-1]
             self.cards.pop(card-1)
         else:
             print("Cartas jogadas anteriormente: ")
+            print(f"len:{(len(previous_cards))}")
             for i in range(len(previous_cards)):
-                print(f"Jogador {i}: {previous_cards[i]}")
+                print(f"Jogador {i}: {previous_cards[i][0]} de {previous_cards[i][1]}")
             print("Escolha uma carta: ")
             for i in range(len(self.cards)):
-                print(f" {i+1}: {self.cards[i]}")
-            card = int(input())
+                print(f" {i+1}: {self.cards[i][0]} de {self.cards[i][1]}")
+            while True:
+                try:
+                    card = int(input())
+                    if 1 <= card <= len(self.cards):
+                        break
+                    else:
+                        print("Número inválido. Por favor, escolha um número entre 1 e", len(self.cards))
+                except ValueError:
+                    print("Entrada inválida. Por favor, digite um número.")
             self.card_played = self.cards[card-1]
             self.cards.pop(card-1)
+        
 
     def lose_lifes(self, number_of_lost_lifes):
         self.lifes -= number_of_lost_lifes
@@ -67,7 +91,7 @@ class Player:
         self.cards = cards
 
     def receive_vira(self, vira):
-        print(f"Vira recebida: {vira}")
+        print(f"Vira recebido: {vira}")
         self.vira = vira
 
     def all_losers(self):
@@ -82,28 +106,35 @@ class Player:
     def dealer_routine(self, dealer_index, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS):
         # Inicializar o jogo
         while True:
-            game.initialize_deck() # Inicializa o baralho
-            game.shuffle_deck() # Embaralha o baralho
-            cards_to_send = game.draw_cards() # Distribui as cartas 
             if game.state['n_sub_rounds'] == 0:
+                corrected_index = (self.index - 1) % game.n_players
+                game.initialize_deck() # Inicializa o baralho
+                game.shuffle_deck() # Embaralha o baralho
+                cards_to_send = game.draw_cards() # Distribui as cartas 
                 _, cards = send_broadcast(socket_sender, socket_receiver, 1, cards_to_send, dealer_index, NEXT_NODE_ADDRESS) # Envia as cartas para os jogadores
                 n_players_alive = game.state['players_alive'].count(True)
                 self.receive_cards(cards[n_players_alive-1]) # Recebe as cartas do dealer
                 send_broadcast(socket_sender, socket_receiver, 2, game.state['vira'], dealer_index, NEXT_NODE_ADDRESS) # Envia o vira
                 self.receive_vira(game.state['vira']) # Recebe o vira
                 # Fazer uma lista vazia com os palpites dos jogadores vivos
+                # GUILHERME - MELHORAR ISSO AQUI PFV:
                 guesses = [game.state['round']] # Reserva a primeira posição para o número da rodada
                 for i in range(n_players_alive):
                     guesses.append(None)
                 _, guesses = send_broadcast(socket_sender, socket_receiver, 3, guesses, dealer_index, NEXT_NODE_ADDRESS) # Pede os palpites
+                #---------------------------------------------------------------------------------------
                 print(f"[DEBUG] guesses: {guesses}")
                 self.make_a_guess(guesses, n_players_alive) # Dealer faz o palpite
-                guesses.append(self.guess)
+                guesses = guesses[1:] # Remove o número da rodada
+                guesses[corrected_index] = self.guess
+
                 send_broadcast(socket_sender, socket_receiver, 4, guesses, dealer_index, NEXT_NODE_ADDRESS) # Envia os palpites
             # Manda a mensagem para coletar as cartas jogadas 
             # e recebe as cartas jogadas
             self.play_a_card([]) # Dealer joga uma carta
-            cards_played = send_broadcast(socket_sender, socket_receiver, 5, self.card_played, dealer_index, NEXT_NODE_ADDRESS) 
+            print(f"[DEBUG] card_played: {self.card_played}")
+            card_message = [self.card_played]
+            _, cards_played = send_broadcast(socket_sender, socket_receiver, 5, card_message, dealer_index, NEXT_NODE_ADDRESS) 
             subround_winner = game.end_of_sub_round(cards_played) # Contabiliza quem fez a rodada
                                     
             game.increment_sub_round() # Incrementa a rodada

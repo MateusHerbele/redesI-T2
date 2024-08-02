@@ -1,28 +1,18 @@
-import socket
 import time
 import pickle # Biblioteca para serialização de objetos
 from packet import BroadcastPacket, UnicastPacket
+import sys
 
-# Define o tipo da mensagem
-def type_of_message(type_message, message, sender_index):
-    if type_message == 0:    # TOKEN 
-        return UnicastPacket(sender_index, message[0] , 0, message[1]) # Envia o token para o próximo jogador e o jogo
-    elif type_message == 1:  # CARTAS
-        return BroadcastPacket(sender_index, 1, message) # Envia as cartas para todos
-    elif type_message == 2:  # VIRA
-        return BroadcastPacket(sender_index, 2, message) # Envia o vira
-    elif type_message == 3:  # PALPITES
-        return BroadcastPacket(sender_index, 3, message) # Pede os palpites
-    elif type_message == 4:  # MOSTRA TODOS OS PALPITES
-        return BroadcastPacket(sender_index, 4, message)
-    elif type_message == 5:  # JOGAR A SUB RODADA
-        return BroadcastPacket(sender_index, 5, message) # Pede as cartas jogadas
-    elif type_message == 6:  # FIM DA RODADA
-        return BroadcastPacket(sender_index, 6, message) # Passa os resultados da rodada
-    elif type_message == 7:  # EMPATE
-        return BroadcastPacket(sender_index, 7, message) # Passa o empate
-    elif type_message == 8:  # VENCEDOR
-        return BroadcastPacket(sender_index, 8, message) # Passa o vencedor 
+NETWORK_ADDRESSES = [
+    (("127.0.0.1", 21254), 0), # 0
+    (("127.0.0.1", 21255), 1), # 1
+    (("127.0.0.1", 21256), 2), # 2 
+    (("127.0.0.1", 21257), 3)  # 3
+]
+
+def get_addresses():
+    identification = int(sys.argv[1])
+    return NETWORK_ADDRESSES[identification], NETWORK_ADDRESSES[(identification + 1) % 4]
 
 # Verifica se a mensagem foi recebida corretamente 
 def verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS):
@@ -42,19 +32,20 @@ def verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS
         return True, packet.message
 
 def send_broadcast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS):
-    validation = False
-    packet = type_of_message(type_message, message, sender_index)
+    packet = BroadcastPacket(sender_index, type_message, message)
     socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     # Verifica se a mensagem foi recebida corretamente e reenvia caso não tenha sido
+    validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
     while validation == False:
         validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     return validation, message
 
 def send_unicast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS): # SÓ TEM UM TIPO DE UNICAST MAS NÃO SEI SE VALE DEIXAR SÓ AQUI MSM SEM TIPO DE MENSAGEM, ACHO Q FOGE DO PADRÃO
-    packet = type_of_message(type_message, message, sender_index)
+    packet = UnicastPacket(sender_index, message[0] , 0, message[1])
     socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     # Verifica se a mensagem foi recebida corretamente e reenvia caso não tenha sido
+    validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
     while validation == False:
         validation, message = verifications(type_message, sender_index, socket_receiver, NEXT_NODE_ADDRESS)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
@@ -104,7 +95,7 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, socket_receiver, sock
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == 5: # JOGAR A SUB RODADA
-        player.play_a_card()
+        player.play_a_card(packet.message)
         packet.message.append(player.card_played)
         # packet.verifier.append(True)
         packet.verifier[corrected_index] = True # Marca que a mensagem foi recebida

@@ -20,29 +20,31 @@ class Game:
 
     # Inicilializa o baralho
     def initialize_deck(self):
-        suits = ['O', 'E', 'C', 'P']
-        ranks = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3']
-        self.state['deck'] = [{'suit': suit, 'rank': rank} for suit in suits for rank in ranks]
+        suits = ['Ouro', 'Espadas', 'Copas', 'Paus']
+        ranks = ['4', '5', '6', '7', 'Q (Dama)', 'J (Valete)', 'K (Rei)', 'A', '2', '3']
+        self.state['deck'] = [(rank, suit) for rank in ranks for suit in suits]
 
     # Embaralha o baralho
     def shuffle_deck(self):
         random.shuffle(self.state['deck'])
 
     # Força das cartas
-    def card_strength(card, vira):
-        suit_order = ['O', 'E', 'C', 'P']
-        rank_order = ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3']
+    def card_strength(self, card):
+        suit_order = ['Ouro', 'Espadas', 'Copas', 'Paus']
+        rank_order = ['4', '5', '6', '7', 'Q (Dama)', 'J (Valete)', 'K (Rei)', 'A', '2', '3']
         # manilhas
-        manilha_index = 1 if vira['rank'] == '3' else rank_order.index(vira['rank']) + 1
-        if rank_order.index(card['rank']) == manilha_index:
+        manilha_index = 1 if self.state['vira'][0] == '3' else rank_order.index(self.state['vira'][0]) + 1
+        print(f"[DEBUG] manilha_index: {manilha_index}")
+        print(f"[DEBUG] card rank: {card[0]}")
+        if rank_order.index(card[0]) == manilha_index:
             return 10 + suit_order.index(card['suit']) 
-        return rank_order.index(card['rank'])
+        return rank_order.index(card[0])
 
     # Embuchadas:
     def embuchadas(self, cards_played):
         for i in range(self.n_players):
             for j in range(i+1, self.n_players):
-                if cards_played[i]['rank'] == cards_played[j]['rank']:
+                if cards_played[i][0] == cards_played[j][0]:
                     return i, j
 
     # Da as cartas e separa o vira, e retorna um vetor com as cartas
@@ -70,11 +72,12 @@ class Game:
     # Vai receber o payload com todas as cartas jogadas na ordem correta + a carta do dealer
     # Contabiliza o vencedor da rodada
     def end_of_sub_round(self, cards_played):
-        vira = self.state['vira']
+        print(f"[DEBUG] cards_played: {cards_played}")
         # Fazer um vetor com todas as forças das cartas
         cards_strength = []
         for i in range(self.n_players):
-            cards_strength[i] = card_strength(cards_played[i], vira)
+            print(f"[DEBUG] end of sub round, analisando {i} player")
+            cards_strength.append(self.card_strength(cards_played[i]))
 
         # Verificar se houve embuchada
         for i in range(self.n_players-1):
@@ -82,12 +85,12 @@ class Game:
                 continue # Para pular a verificação de embuchada para cartas já embuchadas
             # GUILHERME : DA PRA OTIMIZAR ISSO IMPEDINDO QUE VERIFIQUE CARTAS EMBUCHADAS GUARDANDO O INDICE DAS CARTAS EMBUCHADAS
             for j in range(i+1, self.n_players):
-                if cards_played[i]['rank'] == cards_played[j]['rank']:
+                if cards_played[i][0] == cards_played[j][0]:
                     cards_strength[i] = -1
                     cards_strength[j] = -1
                     break # Caso já tenha sido embuchada não precisa continuar a verificação
         
-        self.points[cards_strength.index(max(cards_strength))] += 1
+        self.state['points'][cards_strength.index(max(cards_strength))] += 1
         return cards_strength.index(max(cards_strength))
     
     # Pega o próximo jogador VIVO para ser o dealer
