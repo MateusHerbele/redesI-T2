@@ -11,13 +11,61 @@ class Game:
             'current_dealer' : None,
             'players_lifes' : [7, 7, 7, 7],
             'players_alive': [True, True, True, True],
-            'guesses' : [],
+            'guesses' : [None, None, None, None],
+            'cards_played' : [None, None, None, None],
             'points' : [0, 0, 0, 0],
             'vira' : None,
         }
     
     def __str__(self):
         return f"Deck: {self.state['deck']}, Round: {self.state['round']}, Current Dealer: {self.state['current_dealer']}, Player Lifes: {self.state['players_lifes']}, Players Alive: {self.state['players_alive']}, Guesses: {self.state['guesses']}, Points: {self.state['points']}, Vira: {self.state['vira']}"
+
+    # Carrega os guesses
+    def load_guesses(self, guesses):
+        self.state['guesses'] = guesses 
+
+    def set_round(self, round):
+        self.state['round'] = round
+    
+    def get_round(self):
+        return self.state['round']
+    
+    def get_guesses(self):  
+        return self.state['guesses']
+
+    # Soma o n de subrodadas
+    def increment_sub_rounds(self):
+        self.state['n_sub_rounds'] += 1
+
+    # Soma o n de rounds
+    def increment_round(self):
+        self.state['round'] += 1
+        print(f"[DEBUG] incrementando round: {self.state['round']}")
+
+    # Reseta o número de subrodadas
+    def reset_sub_rounds(self):
+        self.state['n_sub_rounds'] = 0
+
+    # Atribui o dealer atual
+    def set_current_dealer(self, dealer):
+        self.state['current_dealer'] = dealer
+
+    def set_state(self, state):
+        self.state = state
+    
+    def get_state(self):
+        return self.state
+    
+    def set_cards_played(self, card, index):
+        print(f"[DEBUG] set_cards_played: {card}")
+        print(f"[DEBUG] set_cards_played index: {index}")
+        self.state['cards_played'][index] = card
+
+    def get_cards_played(self):
+        return self.state['cards_played']
+     
+    def reset_cards_played(self):
+        self.state['cards_played'] = [None, None, None, None]
 
     # Inicilializa o baralho
     def initialize_deck(self):
@@ -31,6 +79,8 @@ class Game:
 
     # Força das cartas
     def card_strength(self, card):
+        # if card == None:
+        #     return -2 # Se a carta for None, é porque o jogador está morto
         suit_order = ['Ouro', 'Espadas', 'Copas', 'Paus']
         rank_order = ['4', '5', '6', '7', 'Q (Dama)', 'J (Valete)', 'K (Rei)', 'A', '2', '3']
         # manilhas
@@ -85,7 +135,6 @@ class Game:
         for i in range(self.n_players-1):
             if cards_strength[i] == -1:
                 continue # Para pular a verificação de embuchada para cartas já embuchadas
-            # GUILHERME : DA PRA OTIMIZAR ISSO IMPEDINDO QUE VERIFIQUE CARTAS EMBUCHADAS GUARDANDO O INDICE DAS CARTAS EMBUCHADAS
             for j in range(i+1, self.n_players):
                 if cards_played[i][0] == cards_played[j][0]:
                     cards_strength[i] = -1
@@ -93,6 +142,7 @@ class Game:
                     break # Caso já tenha sido embuchada não precisa continuar a verificação
         print(f"[DEBUG] cards_strength: {cards_strength}")
         self.state['points'][cards_strength.index(max(cards_strength))] += 1
+        self.reset_cards_played()
         return cards_strength.index(max(cards_strength))
     
     # Pega o próximo jogador VIVO para ser o dealer
@@ -136,27 +186,3 @@ class Game:
                 print(f"[DEBUG] EOR guesses: {self.state['guesses']}")
                 self.state['players_lifes'][i] -= abs(self.state['points'][i] - self.state['guesses'][i])
         return self.determine_winner() # Retorna o vencedor da rodada, ou -1 se não tiver vencedor, ou -2 se tiver empate
-
-    # Carrega os guesses
-    def load_guesses(self, guesses):
-        self.state['guesses'] = guesses 
-
-    # Soma o n de subrodadas
-    def increment_sub_rounds(self):
-        self.state['n_sub_rounds'] += 1
-
-    # Soma o n de rounds
-    def increment_round(self):
-        self.state['round'] += 1
-        print(f"[DEBUG] incrementando round: {self.state['round']}")
-
-    # Reseta o número de subrodadas
-    def reset_sub_rounds(self):
-        self.state['n_sub_rounds'] = 0
-
-    # Atribui o dealer atual
-    def set_current_dealer(self, dealer):
-        self.state['current_dealer'] = dealer
-
-    def load_state(self, state):
-        self.state = state

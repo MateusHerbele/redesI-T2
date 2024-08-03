@@ -22,13 +22,13 @@ def main():
     while True:
         # Inicializar o jogo
         if start_game:
-            game_state = player.dealer_routine(CURRENT_NODE_ADDRESS[1], game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS)
+            game_state = player.dealer_routine(player, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS)
             print("[DEBUG] FIM START GAME")
             token_available = False
             start_game = False
         # Verificar se o token está disponível
         if token_available:
-            game_state = player.dealer_routine(CURRENT_NODE_ADDRESS[1], game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS)
+            game_state = player.dealer_routine(player, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS)
             print("[DEBUG] FIM TOKEN AVAILABLE")
             token_available = False  # Token usado
         # Se não tiver, só espera as mensagens
