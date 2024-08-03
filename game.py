@@ -56,15 +56,19 @@ class Game:
     def get_state(self):
         return self.state
     
-    def set_cards_played(self, card, index):
-        print(f"[DEBUG] set_cards_played: {card}")
-        print(f"[DEBUG] set_cards_played index: {index}")
-        self.state['cards_played'][index] = card
+    def set_card_played(self, cards_played, card, index):
+        print(f"[DEBUG] set_card_played: {card}")
+        print(f"[DEBUG] set_card_played index: {index}")
+        cards_played[index] = card
+        self.state['cards_played'] = cards_played
+    
+    def set_cards_played(self, cards_played):
+        self.state['cards_played'] = cards_played
 
     def get_cards_played(self):
         return self.state['cards_played']
      
-    def reset_cards_played(self):
+    def reset_card_played(self):
         self.state['cards_played'] = [None, None, None, None]
 
     # Inicilializa o baralho
@@ -126,23 +130,28 @@ class Game:
     def end_of_sub_round(self, cards_played):
         print(f"[DEBUG] cards_played: {cards_played}")
         # Fazer um vetor com todas as forças das cartas
-        cards_strength = []
+        cards_strength = [None, None, None, None]
         for i in range(self.n_players):
+            if self.state['players_alive'][i] == False:
+                cards_strength[i] = -2 # Se o jogador estiver morto, ele não tem força, -2 para diferençiar de embuchadas
+                continue
             print(f"[DEBUG] end of sub round, analisando {i} player")
-            cards_strength.append(self.card_strength(cards_played[i]))
+            cards_strength[i] = self.card_strength(cards_played[i])
 
         # Verificar se houve embuchada
         for i in range(self.n_players-1):
-            if cards_strength[i] == -1:
+            if cards_strength[i] == -1 or self.state['players_alive'][i] == False:
                 continue # Para pular a verificação de embuchada para cartas já embuchadas
             for j in range(i+1, self.n_players):
+                if self.state['players_alive'][j] == False:
+                    continue
                 if cards_played[i][0] == cards_played[j][0]:
                     cards_strength[i] = -1
                     cards_strength[j] = -1
                     break # Caso já tenha sido embuchada não precisa continuar a verificação
         print(f"[DEBUG] cards_strength: {cards_strength}")
         self.state['points'][cards_strength.index(max(cards_strength))] += 1
-        self.reset_cards_played()
+        self.reset_card_played()
         return cards_strength.index(max(cards_strength))
     
     # Pega o próximo jogador VIVO para ser o dealer
@@ -156,23 +165,21 @@ class Game:
         self.state['players_alive'][index] = False
     # Determina o vencedor da rodada
     def determine_winner(self):
-        players_alive = 0 # Contador de jogadores vivos
-
         for i in range(self.n_players):
-            if self.state['players_lifes'][i] > 0:
-                players_alive += 1
-            else:
-                self.kill_player(i) # Se o jogador não tiver mais vidas, ele é eliminado
+            if self.state['players_lifes'][i] <= 0 and self.state['players_alive'][i]:
+                self.kill_player(i)
+        players_alive = self.state['players_alive'].count(True)
         if players_alive == 1: # Se tem só um jogador vivo ele é o vencedor, só retorna o índice dele
-            return self.state['players_lifes'].index(max(self.state['players_lifes']))
-        elif players_alive == 0: # Se não tem ninguém vivo
-            # E não tiver empates, o jogador com mais pontos é o vencedor
-            if self.state['points'].count(max(self.state['points'])) == 1:
-                return self.state['points'].index(max(self.state['points']))
+            return self.state['players_alive'].index(True)
+        elif players_alive > 1: # Se tiver mais de um jogador vivo
+            return -1 # Continua o jogo
+        else: # Se não tiver nenhum jogador vivo
+            # Verifica se tem empate
+            max_lifes = max(self.state['players_lifes'])
+            if self.state['players_lifes'].count(max_lifes) > 1:
+                return -2
             else:
-                return -2 # Se tiver empate, não tem vencedor
-        else:
-            return -1 # Se tiver mais de um jogador vivo, não tem vencedor e continua o jogo
+                return self.state['players_lifes'].index(max_lifes)                    
             
     # Contabiliza os pontos feitos na rodada
     # Elimina um jogador que fique sem vidas    

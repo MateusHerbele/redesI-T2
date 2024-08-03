@@ -177,8 +177,9 @@ class Player:
             # e recebe as cartas jogadas
             self.play_a_card([]) # Dealer joga uma carta
             print(f"[DEBUG] card_played: {self.card_played}")
-            game.set_cards_played(self.card_played, self.index) # Adiciona a carta jogada ao jogo
-            send_broadcast(socket_sender, socket_receiver, "CARDS-PLAYED", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) 
+            game.set_card_played(game.state['cards_played'], self.card_played, self.index) # Adiciona a carta jogada ao jogo
+            cards_played = send_broadcast(socket_sender, socket_receiver, "CARDS-PLAYED", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) 
+            game.set_cards_played(cards_played) # Recebe as cartas jogadas
             subround_winner = game.end_of_sub_round(game.get_cards_played()) # Contabiliza quem fez a rodada
             print(f"[DEBUG] subround_winner: {subround_winner}")
             game.increment_sub_rounds() # Incrementa a rodada
@@ -197,9 +198,14 @@ class Player:
                         return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
                     continue # Continua o loop
                 elif round_evaluation == -2: # Empate
+                    self.all_losers()
                     send_broadcast(socket_sender, socket_receiver, "TIE", round_evaluation, player.index, NEXT_NODE_ADDRESS)
                     return 1
                 else: # Tem um vencedor
+                    if round_evaluation == player.index:
+                        self.winner()
+                    else:
+                        self.player.loser(round_evaluation) # Anuncia o vencedor
                     send_broadcast(socket_sender, socket_receiver, "WINNER", round_evaluation, player.index, NEXT_NODE_ADDRESS)
                     return 1
                 # return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
@@ -207,5 +213,5 @@ class Player:
             # Validação de quem torna:
             if subround_winner != player.index:
                 print(f"[DEBUG] subround_winner (torna): {subround_winner}")
-                send_unicast(socket_sender, socket_receiver, 0, (subround_winner, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
+                send_unicast(socket_sender, socket_receiver, "TOKEN", (subround_winner, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
                 return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou      

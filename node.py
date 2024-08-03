@@ -39,8 +39,10 @@ def main():
             if network_comunication == 1:
                 token_available = True
             if network_comunication == 0:
+                clear_input_buffer()
                 break # Acaba a execução do programa
         else: # Fim do jogo
+            clear_input_buffer()
             break
 if __name__ == "__main__":
     main()
