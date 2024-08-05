@@ -34,6 +34,7 @@ def verifications(type_message, sender_index, socket_receiver):
                 return False, None 
         return True, packet.message
 
+# Envia a mensagem de broadcast
 def send_broadcast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS):
     packet = BroadcastPacket(sender_index, type_message, message)
     socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
@@ -45,6 +46,7 @@ def send_broadcast(socket_sender, socket_receiver, type_message, message, sender
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     return message
 
+# Envia a mensagem de unicast
 def send_unicast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS): # SÓ TEM UM TIPO DE UNICAST MAS NÃO SEI SE VALE DEIXAR SÓ AQUI MSM SEM TIPO DE MENSAGEM, ACHO Q FOGE DO PADRÃO
     packet = UnicastPacket(sender_index, message[0] , "TOKEN", message[1])
     socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
@@ -56,37 +58,47 @@ def send_unicast(socket_sender, socket_receiver, type_message, message, sender_i
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     return message # esse retorno do validation é inútil, mudar isso
 
-# SE CONSEGUIR CONCERTAR ESSA **** OBG GUILHERME/MILENA:
-def corrected_index_func(node, game):
-    if node == 0: # Manter a circularidade
-        if game.state['current_dealer'] == 1:
-            return 2
-        elif game.state['current_dealer'] == 2:
-            return 1
-        elif game.state['current_dealer'] == 3:
-            return 0
-    elif node == 1:
-        if game.state['current_dealer'] == 0:
-            return 0
-        elif game.state['current_dealer'] == 2:
-            return 2
-        elif game.state['current_dealer'] == 3:
-            return 1
-    elif node == 2:
-        if game.state['current_dealer'] == 0:
-            return 1
-        elif game.state['current_dealer'] == 1:
-            return 0
-        elif game.state['current_dealer'] == 3:
-            return 2
-    elif node == 3:
-        if game.state['current_dealer'] == 0:
-            return 2
-        elif game.state['current_dealer'] == 1:
-            return 1
-        elif game.state['current_dealer'] == 2:
-            return 0    
+# Verifica se os jogadores anteriores receberam a mensagem
+def verify_verifiers(packet, node_index):
+    n_trues = 0
+    if packet.sender == 0:
+        if node_index == 1:
+            n_trues = 0
+        elif node_index == 2:
+            n_trues = 1
+        elif node_index == 3:
+            n_trues = 2
+    elif packet.sender == 1:
+        if node_index == 2:
+            n_trues = 0
+        elif node_index == 3:
+            n_trues = 1
+        elif node_index == 0:
+            n_trues = 2
+    elif packet.sender == 2:
+        if node_index == 3:
+            n_trues = 0
+        elif node_index == 0:
+            n_trues = 1
+        elif node_index == 1:
+            n_trues = 2
+    elif packet.sender == 3:
+        if node_index == 0:
+            n_trues = 0
+        elif node_index == 1:
+            n_trues = 1
+        elif node_index == 2:
+            n_trues = 2
 
+    if n_trues == 0:
+        return True
+    else:
+        if packet.verifier.count(True) == n_trues:
+            return True
+        else:
+            return False
+
+# Filtra as mensagens recebidas nas redes pelos nós que não estão com o bastão
 def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver, socket_sender, player):
     data, _ = socket_receiver.recvfrom(1024)
     packet = pickle.loads(data)
@@ -106,8 +118,13 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
             return 1 # RETORNA QUE O TOKEN FOI RECEBIDO
         else: # Se não for para mim, passo adiante
             socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-            return 2
-# Tratamento das mensagens de broadcast:
+            return 2 # se quebrar o jogo remove o 2
+    # Tratamento das mensagens de broadcast:
+
+    # Se algum nodo anterior não verificou a mensagem, reenvia pro nodo com o bastão para ele reenviar a mensagem
+    if verify_verifiers(packet, CURRENT_NODE_ADDRESS[1]) == False:
+        socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
+        return 2 
     elif packet.verifier[player.index] == True:
 # $& Mensagem já recebida")
         return 2 # RETORNA QUE A MENSAGEM JÁ FOI RECEBIDA

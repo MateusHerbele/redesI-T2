@@ -18,8 +18,7 @@ Implementação de uma rede em anel que possibilite jogar F*da-se (o nome do jog
    - O jogador seguinte ao carteador faz o primeiro palpite subsequente.
 
 4. **Carta do Vira:**
-   - Na primeira rodada, a carta do vira é mantida virada para baixo até que todos façam seus palpites.
-   - Em rodadas subsequentes, a carta do vira é colocada virada para cima antes do primeiro palpite.
+   - A carta do vira é colocada virada para cima antes do primeiro palpite.
 
 ## Dinâmica do Jogo
 
