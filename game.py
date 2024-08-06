@@ -172,6 +172,8 @@ class Game:
         for i in range(self.n_players):
             if self.state['players_lifes'][i] <= 0 and self.state['players_alive'][i]:
                 self.kill_player(i)
+            elif self.state['players_alive'][i] == False:
+                self.state['players_lifes'][i] = -55 # Valor arbitrário para jogadores mortos
         players_alive = self.state['players_alive'].count(True)
         if players_alive == 1: # Se tem só um jogador vivo ele é o vencedor, só retorna o índice dele
             return self.state['players_alive'].index(True)
