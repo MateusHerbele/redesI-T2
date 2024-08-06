@@ -1,6 +1,4 @@
-import time
 import pickle # Biblioteca para serialização de objetos
-# from game import Game
 from packet import BroadcastPacket, UnicastPacket
 import sys
 
@@ -11,6 +9,7 @@ NETWORK_ADDRESSES = [
     (("10.254.224.59", 21257), 3)  # 3 # i32
 ]
 
+# Configura os endereços de rede com base no argumento passado
 def get_addresses():
     identification = int(sys.argv[1])
     return NETWORK_ADDRESSES[identification], NETWORK_ADDRESSES[(identification + 1) % 4]
@@ -46,7 +45,7 @@ def send_broadcast(socket_sender, socket_receiver, type_message, message, sender
     return message
 
 # Envia a mensagem de unicast
-def send_unicast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS): # SÓ TEM UM TIPO DE UNICAST MAS NÃO SEI SE VALE DEIXAR SÓ AQUI MSM SEM TIPO DE MENSAGEM, ACHO Q FOGE DO PADRÃO
+def send_unicast(socket_sender, socket_receiver, type_message, message, sender_index, NEXT_NODE_ADDRESS):
     packet = UnicastPacket(sender_index, message[0] , "TOKEN", message[1])
     socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     # Verifica se a mensagem foi recebida corretamente e reenvia caso não tenha sido
@@ -54,7 +53,7 @@ def send_unicast(socket_sender, socket_receiver, type_message, message, sender_i
     while validation == False:
         validation, message = verifications(type_message, sender_index, socket_receiver)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-    return message # esse retorno do validation é inútil, mudar isso
+    return message 
 
 # Verifica se os jogadores anteriores receberam a mensagem
 def verify_verifiers(packet, node_index):
@@ -100,10 +99,8 @@ def verify_verifiers(packet, node_index):
 def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver, socket_sender, player):
     data, _ = socket_receiver.recvfrom(1024)
     packet = pickle.loads(data)
-    # print(packet) # DEBUG
-    
-    # É preciso "corrigir" o index, para que faça sentido com o index do dealer atual
-    # print(f"[DEBUG] player: {player.index} corrected_index desse player na tr: {corrected_index}")
+
+    # Tratamento das mensagens de unicast:   
     if packet.message_type == "TOKEN": # TOKEN 
         if packet.dest == CURRENT_NODE_ADDRESS[1]:
             packet.verifier = True # não é um vetor pq é unicast
@@ -113,74 +110,87 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
             return 1 # RETORNA QUE O TOKEN FOI RECEBIDO
         else: # Se não for para mim, passo adiante
             socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-            return 2 # se quebrar o jogo remove o 2
+            return 2 # Continua o funcionamento da rede
+    
     # Tratamento das mensagens de broadcast:
 
-    # Se algum nodo anterior não verificou a mensagem, reenvia pro nodo com o bastão para ele reenviar a mensagem
+    # Se algum nodo anterior não verificou a mensagem, reenvia até o nodo com o bastão para ele reenviar a mensagem
     if verify_verifiers(packet, CURRENT_NODE_ADDRESS[1]) == False:
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2 
+        return 2 # Continua o funcionamento da rede
+    # Se a mensagem já foi recebida:
     elif packet.verifier[player.index] == True:
-        return 2 # RETORNA QUE A MENSAGEM JÁ FOI RECEBIDA
-    elif packet.message_type == "TIE": # EMPATE
+        return 2 # Continua o funcionamento da rede
+    # EMPATE
+    elif packet.message_type == "TIE":
         player.all_losers()
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        # termina o jogo
-        return 0
-    elif packet.message_type == "WINNER": # VENCEDOR
-        player.game_winner(packet.message) # Você ganhou
+        return 0 # termina o jogo
+    # VENCEDOR
+    elif packet.message_type == "WINNER":
+        player.game_winner(packet.message) # Verifica o vencedor
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        # termina o jogo
-        return 0
+        return 0 # termina o jogo
+    # Se o jogador foi eliminado, só repassa a mensagem
     elif game.state["players_alive"][player.index] == False:
         print(f"Você foi eliminado ...")
         packet.verifier[player.index] = True
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
+        return 2 # Continua o funcionamento da rede
+    # Recebe o estado do jogo
     elif packet.message_type == "GAME-STATE":
         game.set_state(packet.message)
         if game.state["players_alive"][player.index] == True:
+            print(f"-----------------RODADA {game.state['round']}-----------------")
             player.set_vira(packet.message['vira'])
+        else:
+            print(f"Você foi eliminado ...")
         packet.verifier[player.index] = True
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
-    elif packet.message_type == "CARDS": # CARTAS
+        return 2 # Continua o funcionamento da rede
+    # CARTAS enviadas pelo dealer
+    elif packet.message_type == "CARDS": 
         player.set_cards(packet.message[player.index])
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
-    elif packet.message_type == "TAKE-GUESSES": # PALPITE
+        return 2 # Continua o funcionamento da rede
+    # Recolhe o palpite do player e mostra os anteriores
+    elif packet.message_type == "TAKE-GUESSES":
         player.make_a_guess(game, packet.message)
         packet.message[player.index] = player.guess
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
-    elif packet.message_type == "SHOW-GUESSES": # MOSTRA TODOS OS PALPITES
+        return 2 # Continua o funcionamento da rede
+    # Mostra todos os palpites feitos
+    elif packet.message_type == "SHOW-GUESSES":
         player.show_guesses(packet.message)
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
-    elif packet.message_type == "PLAY-CARD": # JOGAR A SUB RODADA
+        return 2 # Continua o funcionamento da rede
+    # Jogador joga uma carta na sub rodada
+    elif packet.message_type == "PLAY-CARD":
         player.play_a_card(packet.message)
         game.set_card_played(packet.message, player.card_played, player.index)
         packet.message = game.get_cards_played()
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
-    elif packet.message_type == "SHOW-CARDS": # MOSTRA AS CARTAS JOGADAS
+        return 2 # Continua o funcionamento da rede
+    # Mostra as cartas jogadas
+    elif packet.message_type == "SHOW-CARDS":
         player.show_cards(packet.message)
         packet.verifier[player.index] = True
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
-    # MANDAR OS PALPITES COMPLETOS E OS CARDS JOGADOS
-    elif packet.message_type == "SUBROUND-WINNER": # MOSTRA QUEM FEZ A SUB RODADA
+        return 2 # Continua o funcionamento da rede
+    # Mostra quem fez a sub rodada
+    elif packet.message_type == "SUBROUND-WINNER":
         player.sub_round_winner(packet.message)
         packet.verifier[player.index] = True
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-    elif packet.message_type == "END-OF-ROUND": # FIM DA RODADA
+    # Recebe as informações sobre o fim da rodada
+    elif packet.message_type == "END-OF-ROUND":
         player.lose_lifes(packet.message[player.index])
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
-        return 2
+        return 2 # Continua o funcionamento da rede

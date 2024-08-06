@@ -94,7 +94,6 @@ class Player:
     # Faz um palpite e guarda no objeto 
     def make_a_guess(self, game, previous_guesses):
         sum_guesses = 0
-        n_previous_guesses = 0
         n_previous_guesses = len([guess for guess in previous_guesses if guess is not None])
         # Primeiro palpite da rodada
         if n_previous_guesses == 0: 
@@ -108,13 +107,13 @@ class Player:
                         print(f"Por favor, digite um número entre 0 e {game.get_round():}.")
                 except ValueError:
                     print("Entrada inválida. Por favor, digite um número.")
-        else:
+        else: # Palpites subsequentes
             print(f"Palpites anteriores: ")
             for i in range(4):
                 if previous_guesses[i] is not None:
                     print(f"Jogador {i}: {previous_guesses[i]}")
                     sum_guesses += previous_guesses[i]
-            if n_previous_guesses == 3: # Último palpite
+            if n_previous_guesses == len([player for player in game.state['players_alive'] if player == True]) - 1: # Último palpite
                 while True:
                     try:
                         guess = int(input("Digite seu palpite: "))
@@ -174,24 +173,27 @@ class Player:
             self.card_played = self.cards[card-1]
             self.cards.pop(card-1)
         
-
+    # Perde vidas
     def lose_lifes(self, points):
         number_of_lost_lifes = abs(points - self.guess)    
         self.lifes -= number_of_lost_lifes
         print(f"Número de vidas perdidas: {number_of_lost_lifes}. Vidas restantes: {self.lifes}")
 
+    # Mostra que todos perderam
     def all_losers(self):
         print("Todos os jogadores perderam!")
     
+    # Mostra o vencedor do jogo
     def game_winner(self, winner):
             if winner == self.index:
                 print("Você venceu!")
             else:
                 print(f"O jogador {winner} venceu!")
 
+    # Rotina do dealer e do jogador que torna
     def dealer_routine(self, player, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS):
-        # Inicializar o jogo
         while True:
+            # Inicializar o round (apenas o dealer)
             if game.state['n_sub_rounds'] == 0:
                 guesses = 0
                 game.set_current_dealer(player.index) # Define o dealer
@@ -199,21 +201,24 @@ class Player:
                 game.shuffle_deck() # Embaralha o baralho
                 cards_to_send = game.draw_cards() # Sorteia as cartas
                 send_broadcast(socket_sender, socket_receiver, "GAME-STATE", game.get_state(), player.index, NEXT_NODE_ADDRESS) # Envia o estado do jogo
+                print(f"-----------------RODADA {game.state['round']}-----------------")
                 self.set_vira(game.state['vira']) # Recebe o vira
                 cards = send_broadcast(socket_sender, socket_receiver, "CARDS", cards_to_send, player.index, NEXT_NODE_ADDRESS) # Envia as cartas para os jogadores
                 self.set_cards(cards[player.index]) # Recebe as cartas do dealer
                 guesses = send_broadcast(socket_sender, socket_receiver, "TAKE-GUESSES", game.get_guesses(), player.index, NEXT_NODE_ADDRESS) # Pede os palpites
-                #---------------------------------------------------------------------------------------
                 self.make_a_guess(game, guesses) # Dealer faz o palpite
                 guesses[player.index] = self.guess # Palpite do dealer
                 game.load_guesses(guesses) # Carrega os palpites no jogo
                 send_broadcast(socket_sender, socket_receiver, "SHOW-GUESSES", guesses, player.index, NEXT_NODE_ADDRESS) # Envia os palpites
                 self.show_guesses(guesses) # Mostra os palpites
+            # -------------------------------------------------------------------------------------------------
+            # Rotina compartilhada entre o dealer e o jogador que torna:
+
             # Manda a mensagem para coletar as cartas jogadas 
             # e recebe as cartas jogadas
             self.play_a_card([]) # Dealer joga uma carta
             game.set_card_played(game.state['cards_played'], self.card_played, self.index) # Adiciona a carta jogada ao jogo
-            cards_played = send_broadcast(socket_sender, socket_receiver, "PLAY-CARD", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) 
+            cards_played = send_broadcast(socket_sender, socket_receiver, "PLAY-CARD", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) # Envia a mensagem para jogarem as cartas
             game.set_cards_played(cards_played) # Recebe as cartas jogadas
             send_broadcast(socket_sender, socket_receiver, "SHOW-CARDS", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) # Envia as cartas jogadas
             self.show_cards(game.get_cards_played()) # Mostra as cartas jogadas
@@ -222,7 +227,7 @@ class Player:
             send_broadcast(socket_sender, socket_receiver, "SUBROUND-WINNER", subround_winner, player.index, NEXT_NODE_ADDRESS) # Envia o vencedor da sub-rodada
             game.increment_sub_rounds() # Incrementa a rodada
             # Validação de fim de rodada
-            if game.state['n_sub_rounds'] == game.state['round']:
+            if game.state['n_sub_rounds'] == game.state['round']: # Fim da rodada
                 round_evaluation = game.end_of_round() # Avalia a situação pós-rodada
                 dealer_points = send_broadcast(socket_sender, socket_receiver, "END-OF-ROUND", game.state['points'], player.index, NEXT_NODE_ADDRESS) # Passa os resultados da rodada
                 self.lose_lifes(dealer_points[player.index]) # Perde vidas
@@ -231,10 +236,9 @@ class Player:
                     game.increment_round() # Incrementa a rodada
                     next_dealer = game.next_dealer() # Pega o próximo dealer
                     game.reset_sub_rounds() # Reseta o número de sub-rodadas
-                    if next_dealer != player.index:
-                        send_unicast(socket_sender, socket_receiver, "TOKEN", (next_dealer, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
-                        return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
-                    continue # Continua o loop
+                    send_unicast(socket_sender, socket_receiver, "TOKEN", (next_dealer, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
+                    return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
+                
                 elif round_evaluation == -2: # Empate
                     self.all_losers()
                     send_broadcast(socket_sender, socket_receiver, "TIE", round_evaluation, player.index, NEXT_NODE_ADDRESS)

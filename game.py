@@ -1,5 +1,6 @@
 # ALTERAR PARA Q A ORDEM DE ANÁLISE COMECE SEMPRE PELO CARTEADOR
 import random 
+
 class Game:
     def __init__(self):
         self.n_players = 4
@@ -16,6 +17,7 @@ class Game:
             'points' : [0, 0, 0, 0],
             'vira' : None,
         }
+
 # class Game:
 #     def __init__(self):
 #         self.n_players = 4
@@ -130,8 +132,6 @@ class Game:
         for i in range(self.n_players):
             if self.state['players_alive'][i]:
                 for _ in range(n_cards_to_give):
-                    # print(f"[DEBUG] deck sendo dtr: {self.state['deck']}")
-                    # print(f"Para : {i}")
                     g_cards[i].append(self.state['deck'].pop())
             else: # Se o jogador não estiver vivo, ele não recebe cartas
                 g_cards[i] = None
@@ -139,8 +139,6 @@ class Game:
         return g_cards
     
     # Contabiliza as cartas jogadas
-    # Vai receber o payload com todas as cartas jogadas na ordem correta + a carta do dealer
-    # Contabiliza o vencedor da rodada
     def end_of_sub_round(self, cards_played):
         # Fazer um vetor com todas as forças das cartas
         cards_strength = [None, None, None, None]
@@ -172,8 +170,10 @@ class Game:
             n_dealer = (n_dealer + 1) % self.n_players
         return n_dealer
 
+    # Mata um jogador
     def kill_player(self, index):
         self.state['players_alive'][index] = False
+    
     # Determina o vencedor da rodada
     def determine_winner(self):
         for i in range(self.n_players):
@@ -197,6 +197,7 @@ class Game:
     
     def reset_points(self):
         self.state['points'] = [0, 0, 0, 0]
+        
     # Contabiliza os pontos feitos na rodada
     # Elimina um jogador que fique sem vidas    
     def end_of_round(self):

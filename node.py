@@ -1,30 +1,21 @@
-import socket
-from game import Game
-from player import Player
-from network import get_addresses, ring_messages
 from utils import *
 
 # --------main--------
 def main():
     CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS = get_addresses()
 
+    # Inicializar os sockets
     socket_sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     socket_receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     socket_receiver.bind(CURRENT_NODE_ADDRESS[0])
 
     token_available = True if CURRENT_NODE_ADDRESS[1] == 0 else False
-    start_game = True if CURRENT_NODE_ADDRESS[1] == 0 else False
     player = Player(CURRENT_NODE_ADDRESS[1])
     game = Game()
     game_state = 0
     wait_for_user_input()
     while True:
-        # Inicializar o jogo
-        if start_game:
-            game_state = player.dealer_routine(player, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS)
-            token_available = False
-            start_game = False
         # Verificar se o token está disponível
         if token_available:
             game_state = player.dealer_routine(player, game, socket_sender, socket_receiver, NEXT_NODE_ADDRESS)

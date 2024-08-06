@@ -8,7 +8,7 @@ class Packet:
     def __str__(self):
         return f"Sender: {self.sender}, Type: {self.message_type}, Message: {self.message}, Verifier: {self.verifier}"
 
-class BroadcastPacket(Packet):
+class BroadcastPacket(Packet): 
     def __init__(self, sender, message_type, message, verifier=[False, False, False, False]):
         super().__init__(sender, message_type, message, verifier)
 
