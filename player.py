@@ -6,9 +6,19 @@ class Player:
         self.cards = []
         self.vira = None
         self.guess = None
-        self.index = index # Talvez remover, avaliar a necessidade
+        self.index = index
         self.card_played = None
-        # Métodos set
+
+# class Player:
+#     def __init__(self, index):
+#         self.lifes = 3
+#         self.cards = []
+#         self.vira = None
+#         self.guess = None
+#         self.index = index
+#         self.card_played = None
+    
+    # Métodos set
 
     def set_lifes(self, lifes):
         self.lifes = lifes
@@ -67,6 +77,19 @@ class Player:
             print("Você venceu a sub-rodada!")
         else:    
             print(f"O jogador {winner} venceu a sub-rodada!")
+    # Mostra todas as cartas jogadas na sub-rodada
+    def show_cards(self, cards):
+        print("Cartas jogadas: ")
+        for i in range(4):
+            if cards[i] is not None:
+                print(f"Jogador {i}: {cards[i][0]} de {cards[i][1]}")
+    
+    # Mostra todos os palpites feitos
+    def show_guesses(self, guesses):
+        print("Palpites: ")
+        for i in range(4):
+            if guesses[i] is not None:
+                print(f"Jogador {i}: {guesses[i]}")
 
     # Faz um palpite e guarda no objeto 
     def make_a_guess(self, game, previous_guesses):
@@ -175,23 +198,25 @@ class Player:
                 game.initialize_deck() # Inicializa o baralho
                 game.shuffle_deck() # Embaralha o baralho
                 cards_to_send = game.draw_cards() # Sorteia as cartas
-                cards = send_broadcast(socket_sender, socket_receiver, "CARDS", cards_to_send, player.index, NEXT_NODE_ADDRESS) # Envia as cartas para os jogadores
-                # n_players_alive = game.state['players_alive'].count(True)
-                self.set_cards(cards[player.index]) # Recebe as cartas do dealer
                 send_broadcast(socket_sender, socket_receiver, "GAME-STATE", game.get_state(), player.index, NEXT_NODE_ADDRESS) # Envia o estado do jogo
                 self.set_vira(game.state['vira']) # Recebe o vira
+                cards = send_broadcast(socket_sender, socket_receiver, "CARDS", cards_to_send, player.index, NEXT_NODE_ADDRESS) # Envia as cartas para os jogadores
+                self.set_cards(cards[player.index]) # Recebe as cartas do dealer
                 guesses = send_broadcast(socket_sender, socket_receiver, "TAKE-GUESSES", game.get_guesses(), player.index, NEXT_NODE_ADDRESS) # Pede os palpites
                 #---------------------------------------------------------------------------------------
                 self.make_a_guess(game, guesses) # Dealer faz o palpite
                 guesses[player.index] = self.guess # Palpite do dealer
                 game.load_guesses(guesses) # Carrega os palpites no jogo
                 send_broadcast(socket_sender, socket_receiver, "SHOW-GUESSES", guesses, player.index, NEXT_NODE_ADDRESS) # Envia os palpites
+                self.show_guesses(guesses) # Mostra os palpites
             # Manda a mensagem para coletar as cartas jogadas 
             # e recebe as cartas jogadas
             self.play_a_card([]) # Dealer joga uma carta
             game.set_card_played(game.state['cards_played'], self.card_played, self.index) # Adiciona a carta jogada ao jogo
-            cards_played = send_broadcast(socket_sender, socket_receiver, "CARDS-PLAYED", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) 
+            cards_played = send_broadcast(socket_sender, socket_receiver, "PLAY-CARD", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) 
             game.set_cards_played(cards_played) # Recebe as cartas jogadas
+            send_broadcast(socket_sender, socket_receiver, "SHOW-CARDS", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) # Envia as cartas jogadas
+            self.show_cards(game.get_cards_played()) # Mostra as cartas jogadas
             subround_winner = game.end_of_sub_round(game.get_cards_played()) # Contabiliza quem fez a rodada
             self.sub_round_winner(subround_winner) # Mostra o vencedor da sub-rodada
             send_broadcast(socket_sender, socket_receiver, "SUBROUND-WINNER", subround_winner, player.index, NEXT_NODE_ADDRESS) # Envia o vencedor da sub-rodada

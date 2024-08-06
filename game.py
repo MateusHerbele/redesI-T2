@@ -16,6 +16,22 @@ class Game:
             'points' : [0, 0, 0, 0],
             'vira' : None,
         }
+# class Game:
+#     def __init__(self):
+#         self.n_players = 4
+#         self.state = {
+#             'deck' : [],
+#             'round' : 1,
+#             'n_sub_rounds' : 0,
+#             'n_sub_rounds' : 0,
+#             'current_dealer' : None,
+#             'players_lifes' : [3, 3, 3, 3],
+#             'players_alive': [True, True, True, True],
+#             'guesses' : [None, None, None, None],
+#             'cards_played' : [None, None, None, None],
+#             'points' : [0, 0, 0, 0],
+#             'vira' : None,
+#         }
     
     def __str__(self):
         return f"Deck: {self.state['deck']}, Round: {self.state['round']}, Current Dealer: {self.state['current_dealer']}, Player Lifes: {self.state['players_lifes']}, Players Alive: {self.state['players_alive']}, Guesses: {self.state['guesses']}, Points: {self.state['points']}, Vira: {self.state['vira']}"

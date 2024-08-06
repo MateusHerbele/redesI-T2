@@ -140,8 +140,9 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == "GAME-STATE":
-        player.set_vira(packet.message['vira'])
         game.set_state(packet.message)
+        if game.state["players_alive"][player.index] == True:
+            player.set_vira(packet.message['vira'])
         packet.verifier[player.index] = True
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
@@ -157,16 +158,23 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
     elif packet.message_type == "SHOW-GUESSES": # MOSTRA TODOS OS PALPITES
+        player.show_guesses(packet.message)
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
-    elif packet.message_type == "CARDS-PLAYED": # JOGAR A SUB RODADA
+    elif packet.message_type == "PLAY-CARD": # JOGAR A SUB RODADA
         player.play_a_card(packet.message)
         game.set_card_played(packet.message, player.card_played, player.index)
         packet.message = game.get_cards_played()
         packet.verifier[player.index] = True # Marca que a mensagem foi recebida
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2
+    elif packet.message_type == "SHOW-CARDS": # MOSTRA AS CARTAS JOGADAS
+        player.show_cards(packet.message)
+        packet.verifier[player.index] = True
+        socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
+        return 2
+    # MANDAR OS PALPITES COMPLETOS E OS CARDS JOGADOS
     elif packet.message_type == "SUBROUND-WINNER": # MOSTRA QUEM FEZ A SUB RODADA
         player.sub_round_winner(packet.message)
         packet.verifier[player.index] = True
