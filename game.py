@@ -40,7 +40,6 @@ class Game:
     # Soma o n de rounds
     def increment_round(self):
         self.state['round'] += 1
-# $& incrementando round: {self.state['round']}")
 
     # Reseta o número de subrodadas
     def reset_sub_rounds(self):
@@ -61,8 +60,6 @@ class Game:
         return self.state
     
     def set_card_played(self, cards_played, card, index):
-# $& set_card_played: {card}")
-# $& set_card_played index: {index}")
         cards_played[index] = card
         self.state['cards_played'] = cards_played
     
@@ -93,8 +90,6 @@ class Game:
         rank_order = ['4', '5', '6', '7', 'Q (Dama)', 'J (Valete)', 'K (Rei)', 'A', '2', '3']
         # manilhas
         manilha_index = 0 if self.state['vira'][0] == '3' else rank_order.index(self.state['vira'][0]) + 1
-# $& manilha_index: {manilha_index}")
-# $& card rank: {card[0]}")
         if rank_order.index(card[0]) == manilha_index:
             return 10 + suit_order.index(card[1]) 
         return rank_order.index(card[0])
@@ -115,7 +110,6 @@ class Game:
         if self.state['round'] > n_max_cards:
             n_cards_to_give = n_max_cards
         else:
-# $& round: {self.state['round']}")
             n_cards_to_give = self.state['round'] 
         for i in range(self.n_players):
             if self.state['players_alive'][i]:
@@ -132,14 +126,12 @@ class Game:
     # Vai receber o payload com todas as cartas jogadas na ordem correta + a carta do dealer
     # Contabiliza o vencedor da rodada
     def end_of_sub_round(self, cards_played):
-# $& cards_played: {cards_played}")
         # Fazer um vetor com todas as forças das cartas
         cards_strength = [None, None, None, None]
         for i in range(self.n_players):
             if self.state['players_alive'][i] == False:
                 cards_strength[i] = -2 # Se o jogador estiver morto, ele não tem força, -2 para diferençiar de embuchadas
                 continue
-# $& end of sub round, analisando {i} player")
             cards_strength[i] = self.card_strength(cards_played[i])
 
         # Verificar se houve embuchada
@@ -153,7 +145,6 @@ class Game:
                     cards_strength[i] = -1
                     cards_strength[j] = -1
                     break # Caso já tenha sido embuchada não precisa continuar a verificação
-# $& cards_strength: {cards_strength}")
         self.state['points'][cards_strength.index(max(cards_strength))] += 1
         self.reset_card_played()
         return cards_strength.index(max(cards_strength))
@@ -199,9 +190,6 @@ class Game:
             if self.state['points'][i] == self.state['guesses'][i]:
                 continue
             else:
-# $& EOR players_lifes: {self.state['players_lifes']}")
-# $& EOR points: {self.state['points']}")
-# $& EOR guesses: {self.state['guesses']}")
                 self.state['players_lifes'][i] -= abs(self.state['points'][i] - self.state['guesses'][i])
         self.reset_guesses()
         return self.determine_winner() # Retorna o vencedor da rodada, ou -1 se não tiver vencedor, ou -2 se tiver empate

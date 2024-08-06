@@ -5,10 +5,10 @@ from packet import BroadcastPacket, UnicastPacket
 import sys
 
 NETWORK_ADDRESSES = [
-    (("127.0.0.1", 21254), 0), # 0
-    (("127.0.0.1", 21255), 1), # 1
-    (("127.0.0.1", 21256), 2), # 2 
-    (("127.0.0.1", 21257), 3)  # 3
+    (("10.254.224.56", 21254), 0), # 0 # i29
+    (("10.254.224.57", 21255), 1), # 1 # i30
+    (("10.254.224.58", 21256), 2), # 2 # i31 
+    (("10.254.224.59", 21257), 3)  # 3 # i32
 ]
 
 def get_addresses():
@@ -41,7 +41,6 @@ def send_broadcast(socket_sender, socket_receiver, type_message, message, sender
     # Verifica se a mensagem foi recebida corretamente e reenvia caso não tenha sido
     validation, message = verifications(type_message, sender_index, socket_receiver)
     while validation == False:
-# $& Enviando de novo BROADCAST")
         validation, message = verifications(type_message, sender_index, socket_receiver)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     return message
@@ -53,7 +52,6 @@ def send_unicast(socket_sender, socket_receiver, type_message, message, sender_i
     # Verifica se a mensagem foi recebida corretamente e reenvia caso não tenha sido
     validation, message = verifications(type_message, sender_index, socket_receiver)
     while validation == False:
-# $& Enviando de novo UNICAST")
         validation, message = verifications(type_message, sender_index, socket_receiver)
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
     return message # esse retorno do validation é inútil, mudar isso
@@ -107,13 +105,10 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
     # É preciso "corrigir" o index, para que faça sentido com o index do dealer atual
     # print(f"[DEBUG] player: {player.index} corrected_index desse player na tr: {corrected_index}")
     if packet.message_type == "TOKEN": # TOKEN 
-# $& Token recebido de {packet.sender}")
-# $& Token enviado para {packet.dest}")
         if packet.dest == CURRENT_NODE_ADDRESS[1]:
             packet.verifier = True # não é um vetor pq é unicast
             socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
             # time.sleep(1) # Garante que a mensagem de token recebido chegou no jogador que enviou
-# $& ESTADOS DO JOGO: {packet.message}")
             game.set_state(packet.message) # Atualiza o estado do jogo
             return 1 # RETORNA QUE O TOKEN FOI RECEBIDO
         else: # Se não for para mim, passo adiante
@@ -126,7 +121,6 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])
         return 2 
     elif packet.verifier[player.index] == True:
-# $& Mensagem já recebida")
         return 2 # RETORNA QUE A MENSAGEM JÁ FOI RECEBIDA
     elif packet.message_type == "TIE": # EMPATE
         player.all_losers()
@@ -141,7 +135,6 @@ def ring_messages(CURRENT_NODE_ADDRESS, NEXT_NODE_ADDRESS, game, socket_receiver
         # termina o jogo
         return 0
     elif game.state["players_alive"][player.index] == False:
-# $& Player morto")
         print(f"Você foi eliminado ...")
         packet.verifier[player.index] = True
         socket_sender.sendto(pickle.dumps(packet), NEXT_NODE_ADDRESS[0])

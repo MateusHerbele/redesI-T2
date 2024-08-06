@@ -72,7 +72,6 @@ class Player:
     def make_a_guess(self, game, previous_guesses):
         sum_guesses = 0
         n_previous_guesses = 0
-# $& previous_guesses: {previous_guesses}")
         n_previous_guesses = len([guess for guess in previous_guesses if guess is not None])
         # Primeiro palpite da rodada
         if n_previous_guesses == 0: 
@@ -117,7 +116,6 @@ class Player:
     # Escolhe uma carta para jogar e guarda no objeto
     def play_a_card(self, previous_cards):
         n_previous_cards = len([card for card in previous_cards if card is not None])
-# $& previous_cards: {previous_cards}")
         if n_previous_cards == 0:
             print("VOCÊ É O PRIMEIRO A JOGAR, escolha uma carta: ")
             for i in range(len(self.cards)):
@@ -131,7 +129,6 @@ class Player:
                         print("Número inválido. Por favor, escolha um número entre 1 e", len(self.cards))
                 except ValueError:
                     print("Entrada inválida. Por favor, digite um número.")
-# $& cards: {self.cards}")
             self.card_played = self.cards[card-1]
             self.cards.pop(card-1)
         else:
@@ -174,7 +171,6 @@ class Player:
         while True:
             if game.state['n_sub_rounds'] == 0:
                 guesses = 0
-# $& Começando a rodada {game.state['round']}")
                 game.set_current_dealer(player.index) # Define o dealer
                 game.initialize_deck() # Inicializa o baralho
                 game.shuffle_deck() # Embaralha o baralho
@@ -186,17 +182,13 @@ class Player:
                 self.set_vira(game.state['vira']) # Recebe o vira
                 guesses = send_broadcast(socket_sender, socket_receiver, "TAKE-GUESSES", game.get_guesses(), player.index, NEXT_NODE_ADDRESS) # Pede os palpites
                 #---------------------------------------------------------------------------------------
-# $& guesses: {guesses}")
                 self.make_a_guess(game, guesses) # Dealer faz o palpite
-# $& guesses a serem acoplados: {guesses}")
                 guesses[player.index] = self.guess # Palpite do dealer
                 game.load_guesses(guesses) # Carrega os palpites no jogo
-# $& guesses acoplados: {guesses}")
                 send_broadcast(socket_sender, socket_receiver, "SHOW-GUESSES", guesses, player.index, NEXT_NODE_ADDRESS) # Envia os palpites
             # Manda a mensagem para coletar as cartas jogadas 
             # e recebe as cartas jogadas
             self.play_a_card([]) # Dealer joga uma carta
-# $& card_played: {self.card_played}")
             game.set_card_played(game.state['cards_played'], self.card_played, self.index) # Adiciona a carta jogada ao jogo
             cards_played = send_broadcast(socket_sender, socket_receiver, "CARDS-PLAYED", game.get_cards_played(), player.index, NEXT_NODE_ADDRESS) 
             game.set_cards_played(cards_played) # Recebe as cartas jogadas
@@ -214,7 +206,6 @@ class Player:
                     game.increment_round() # Incrementa a rodada
                     next_dealer = game.next_dealer() # Pega o próximo dealer
                     game.reset_sub_rounds() # Reseta o número de sub-rodadas
-# $& next_dealer: {next_dealer}")
                     if next_dealer != player.index:
                         send_unicast(socket_sender, socket_receiver, "TOKEN", (next_dealer, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
                         return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
@@ -231,6 +222,5 @@ class Player:
             
             # Validação de quem torna:
             if subround_winner != player.index:
-# $& subround_winner (torna): {subround_winner}")
                 send_unicast(socket_sender, socket_receiver, "TOKEN", (subround_winner, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para quem vai "tornar" e se tornar o "dealer" da próxima rodada
                 return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou      
