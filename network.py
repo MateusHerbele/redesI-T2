@@ -2,12 +2,21 @@ import pickle # Biblioteca para serialização de objetos
 from packet import BroadcastPacket, UnicastPacket
 import sys
 
+# Máquinas do DINF
 NETWORK_ADDRESSES = [
     (("10.254.224.56", 21254), 0), # 0 # i29
     (("10.254.224.57", 21255), 1), # 1 # i30
     (("10.254.224.58", 21256), 2), # 2 # i31 
     (("10.254.224.59", 21257), 3)  # 3 # i32
 ]
+
+# Local
+# NETWORK_ADDRESSES = [
+#     (("127.0.0.1", 21254), 0), # 0
+#     (("127.0.0.1", 21255), 1), # 1
+#     (("127.0.0.1", 21256), 2), # 2 
+#     (("127.0.0.1", 21257), 3)  # 3
+# ]
 
 # Configura os endereços de rede com base no argumento passado
 def get_addresses():
