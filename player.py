@@ -236,9 +236,11 @@ class Player:
                     game.increment_round() # Incrementa a rodada
                     next_dealer = game.next_dealer() # Pega o próximo dealer
                     game.reset_sub_rounds() # Reseta o número de sub-rodadas
-                    send_unicast(socket_sender, socket_receiver, "TOKEN", (next_dealer, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
-                    return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
-                
+                    if next_dealer != player.index:
+                        send_unicast(socket_sender, socket_receiver, "TOKEN", (next_dealer, game.state), player.index, NEXT_NODE_ADDRESS) # Passa o token para o próximo dealer
+                        return 0 # Retorna 0 para indicar que a sub-rotina desse nodo terminou
+                    continue
+
                 elif round_evaluation == -2: # Empate
                     self.all_losers()
                     send_broadcast(socket_sender, socket_receiver, "TIE", round_evaluation, player.index, NEXT_NODE_ADDRESS)
