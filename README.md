@@ -1,4 +1,4 @@
-# RedesI-T2
+# Token Ring - Aplicado a um jogo de cartas
 Implementação de uma rede em anel que possibilite jogar F*da-se (o nome do jogo é esse mesmo)
 
 # O JOGO: 
